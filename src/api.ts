@@ -38,6 +38,11 @@ export interface GameStateDto {
   black_score: number | null;
   white_score: number | null;
 }
+export interface RatingPoint {
+  date: string;
+  rating: number;
+  won: boolean | null;
+}
 export interface Profile {
   name: string;
   rating: number;
@@ -52,7 +57,10 @@ export interface Profile {
     show_last_move: boolean;
     show_territory: boolean;
     confirm_move: boolean;
+    theme: string;
+    sidebar_collapsed: boolean;
   };
+  rating_history: RatingPoint[];
 }
 export interface RecordMeta {
   id: string;
@@ -90,8 +98,8 @@ export interface NewGameReq {
 
 // ---------- API ----------
 export const api = {
-  getProfile: (): Promise<Profile> => invokeOrLocal("get_profile"),
-  updateProfile: (p: Profile): Promise<Profile> => invokeOrLocal("update_profile", { profile: p }),
+  getProfile: (): Promise<Profile> => invokeOrLocal("get_profile").then((p) => normalizeProfile(p)),
+  updateProfile: (p: Profile): Promise<Profile> => invokeOrLocal("update_profile", { profile: p }).then((r) => normalizeProfile(r)),
   newGame: (req: NewGameReq): Promise<GameStateDto> => invokeOrLocal("new_game", { req }),
   getState: (): Promise<GameStateDto> => invokeOrLocal("get_state"),
   playMove: (pos: number): Promise<GameStateDto> => invokeOrLocal("play_move", { pos }),
@@ -136,8 +144,29 @@ function defaultProfile(): Profile {
     draws: 0,
     puzzles_solved: [],
     tutorial_done: [],
-    settings: { sound: true, show_coords: true, show_last_move: true, show_territory: false, confirm_move: false },
+    settings: {
+      sound: true,
+      show_coords: true,
+      show_last_move: true,
+      show_territory: false,
+      confirm_move: false,
+      theme: "dark",
+      sidebar_collapsed: false,
+    },
+    rating_history: [{ date: new Date().toISOString().slice(0, 16).replace("T", " "), rating: 800, won: null }],
   };
+}
+
+/** 兼容旧档案：补齐新字段 */
+export function normalizeProfile(p: Profile): Profile {
+  const def = defaultProfile();
+  const np: Profile = {
+    ...def,
+    ...p,
+    settings: { ...def.settings, ...(p.settings || {}) },
+    rating_history: p.rating_history?.length ? p.rating_history : def.rating_history,
+  };
+  return np;
 }
 
 function lsGet<T>(key: string): T | null {
@@ -388,6 +417,15 @@ function endLocalGame(g: LocalGame, reason: string, bs: number | null, ws: numbe
     prof.rating = Math.max(100, prof.rating + Math.max(-60, Math.min(60, delta)));
     if (playerWon) prof.wins++;
     else prof.losses++;
+    // 记录战绩曲线
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    prof.rating_history.push({
+      date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`,
+      rating: prof.rating,
+      won: playerWon,
+    });
+    if (prof.rating_history.length > 200) prof.rating_history.splice(0, prof.rating_history.length - 200);
     lsSet(LS_PROFILE, prof);
   }
   persistLocal();

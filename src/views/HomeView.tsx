@@ -79,6 +79,15 @@ export function HomeView() {
           </div>
         </button>
 
+        <button className="entry card" onClick={() => setView("library")}>
+          <div className="entry-icon e-blue"><Icon name="target" size={26} /></div>
+          <div className="entry-info">
+            <h3>定式库</h3>
+            <p>布局流派与角部定式 · 逐步演示 {content.openings.length} 例</p>
+          </div>
+          <span className="entry-arrow"><Icon name="chevronRight" /></span>
+        </button>
+
         <button className="entry card" onClick={() => setView("records")}>
           <div className="entry-icon e-blue"><Icon name="records" size={26} /></div>
           <div className="entry-info">

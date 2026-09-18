@@ -1,6 +1,8 @@
 // 内容类型与共享工具（段位换算、坐标）
 import contentJson from "./content.json";
 
+export const APP_VERSION = "1.1.0";
+
 export interface AiLevel {
   level: number;
   name: string;
@@ -15,10 +17,11 @@ export interface TaskStep {
   size?: number;
   stones?: { black: string[]; white: string[] };
   toMove?: "b" | "w";
-  kind: "moveto" | "any" | "forbidden" | "capture" | "escape" | "eyes" | "seq";
+  kind: "moveto" | "any" | "forbidden" | "capture" | "escape" | "eyes" | "seq" | "connect";
   pos?: string[];
   targets?: string[];
   seed?: string;
+  seeds?: string[];
   minLibs?: number;
   minEyes?: number;
   forbidden?: { pos: string; message: string }[];
@@ -36,7 +39,17 @@ export interface TextStep {
   body: string;
 }
 
-export type Step = TextStep | TaskStep;
+export interface DemoStep {
+  type: "demo";
+  title: string;
+  body: string;
+  size: number;
+  /** 着法列表，带颜色前缀：如 "bdd" = 黑下 dd，"wfc" = 白下 fc */
+  moves: string[];
+  captions: string[];
+}
+
+export type Step = TextStep | TaskStep | DemoStep;
 
 export interface Chapter {
   id: string;
@@ -62,13 +75,31 @@ export interface Puzzle {
   explain: string;
 }
 
+export interface OpeningEntry {
+  id: string;
+  category: "layout" | "joseki";
+  name: string;
+  size: number;
+  /** 着法，带颜色前缀："bdd" = 黑 dd */
+  moves: string[];
+  intro: string;
+  detail: string;
+}
+
 export const content = contentJson as unknown as {
   aiLevels: AiLevel[];
   tutorials: Chapter[];
   puzzles: Puzzle[];
+  openings: OpeningEntry[];
 };
 
 export const TIER_NAMES: Record<number, string> = { 1: "吃子入门", 2: "战术进阶", 3: "死活手筋" };
+
+/** 解析带颜色前缀的着法："bdd" → { side: BLACK, coord: "dd" } */
+export function parsePrefixedMove(mv: string): { side: number; coord: string } {
+  const s = mv[0] === "w" ? 2 : 1;
+  return { side: s, coord: mv.slice(1) };
+}
 
 /** SGF 风格坐标 → 序号（a=0，列在前） */
 export function coordToPos(size: number, c: string): number {

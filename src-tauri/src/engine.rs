@@ -204,7 +204,7 @@ impl Game {
         while let Some(&cur) = stones.last() {
             stones.pop();
             let (x, y) = (cur % size, cur / size);
-            let mut push = |n: usize, s: &mut Vec<usize>, seen: &mut HashSet<usize>, libs: &mut HashSet<usize>| {
+            let push = |n: usize, s: &mut Vec<usize>, seen: &mut HashSet<usize>, libs: &mut HashSet<usize>| {
                 match b[n] {
                     EMPTY => {
                         libs.insert(n);
@@ -495,7 +495,7 @@ fn multi_bfs(board: &[u8], size: usize, color: u8) -> Vec<u32> {
     }
     while let Some(i) = queue.pop_front() {
         let (x, y) = (i % size, i / size);
-        let mut visit = |j: usize, dist: &mut Vec<u32>, queue: &mut std::collections::VecDeque<usize>| {
+        let visit = |j: usize, dist: &mut Vec<u32>, queue: &mut std::collections::VecDeque<usize>| {
             if board[j] != color && dist[j] > dist[i] + 1 {
                 dist[j] = dist[i] + 1;
                 queue.push_back(j);
@@ -682,8 +682,6 @@ fn heuristic(game: &Game, pos: usize, side: Side) -> f64 {
     for &c in &captured {
         b[c] = EMPTY;
     }
-    let (_, own_libs) = Game::group_on(&b, game.size, pos);
-    let own_size = b.iter().filter(|&&c| c == color).count();
 
     // 自己处于被打吃的块能否得救
     for &nb in &game.neighbors(pos) {
@@ -740,7 +738,6 @@ fn heuristic(game: &Game, pos: usize, side: Side) -> f64 {
         score += (10.0 - d.min(10.0)) * 0.8;
     }
 
-    let _ = own_size;
     score + rand::thread_rng().gen_range(0.0..1.5)
 }
 
@@ -749,7 +746,6 @@ fn playout(game: &Game, first: usize, side: Side, lv: usize) -> bool {
     let mut b = game.board.clone();
     let mut ko: Option<usize> = game.ko;
     let mut pass_streak = 0;
-    let mut turn = side;
     let size = game.size;
     let n = size * size;
     let max_moves = n * 2;
@@ -758,7 +754,7 @@ fn playout(game: &Game, first: usize, side: Side, lv: usize) -> bool {
     if apply_playout(&mut b, &mut ko, first, side, size).is_none() {
         return area_win(&b, game.komi, side);
     }
-    turn = side.opp();
+    let mut turn = side.opp();
     let mut moves = 1;
     while pass_streak < 2 && moves < max_moves {
         // 随机找合法点

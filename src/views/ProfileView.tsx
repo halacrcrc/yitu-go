@@ -1,7 +1,8 @@
-// 个人档案：段位、战绩、设置
+// 个人档案：段位、战绩曲线、设置
 import { useEffect, useState } from "react";
 import { Icon } from "../components/ui";
-import { rankProgress } from "../content";
+import { RatingChart } from "../components/RatingChart";
+import { rankProgress, APP_VERSION } from "../content";
 import { useStore } from "../store";
 import { IS_TAURI } from "../api";
 
@@ -66,6 +67,11 @@ export function ProfileView() {
           </div>
         </section>
 
+        <section className="card chart-card">
+          <h3><Icon name="play" size={18} /> 战绩曲线</h3>
+          <RatingChart history={profile.rating_history} />
+        </section>
+
         <section className="card">
           <h3><Icon name="user" size={18} /> 个人信息</h3>
           <div className="row gap">
@@ -96,16 +102,30 @@ export function ProfileView() {
             <span>落子二次确认（防误触）</span>
             <Toggle on={profile.settings.confirm_move} onChange={(v) => updateSettings({ confirm_move: v })} />
           </div>
+          <div className="setting-row">
+            <span>浅色主题</span>
+            <Toggle
+              on={profile.settings.theme === "light"}
+              onChange={(v) => updateSettings({ theme: v ? "light" : "dark" })}
+            />
+          </div>
+          <div className="setting-row">
+            <span>外观预览</span>
+            <div className="seg seg-small">
+              <button className={profile.settings.theme === "dark" ? "on" : ""} onClick={() => updateSettings({ theme: "dark" })}>🌙 深色</button>
+              <button className={profile.settings.theme === "light" ? "on" : ""} onClick={() => updateSettings({ theme: "light" })}>☀️ 浅色</button>
+            </div>
+          </div>
         </section>
 
         <section className="card about">
           <h3><Icon name="bulb" size={18} /> 关于</h3>
           <p className="small muted">
-            弈途围棋 v1.0 · Rust + Tauri 2 + React 构建{IS_TAURI ? "" : "（当前为浏览器演示模式）"}
+            弈途围棋 v{APP_VERSION} · Rust + Tauri 2 + React 构建{IS_TAURI ? "" : "（当前为浏览器演示模式）"}
             <br />
             数据保存在本机：{IS_TAURI ? "系统应用数据目录" : "浏览器 localStorage"}。
             <br />
-            参考玩法设计：棋弈无限：围棋 —— 教程闯关 / AI 分级 / 棋谱管理。
+            参考玩法设计：棋弈无限：围棋 —— 教程闯关 / AI 分级 / 定式库 / 棋谱管理。
           </p>
         </section>
       </div>

@@ -11,6 +11,14 @@ pub struct Settings {
     pub show_last_move: bool,
     pub show_territory: bool,
     pub confirm_move: bool,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(default)]
+    pub sidebar_collapsed: bool,
+}
+
+fn default_theme() -> String {
+    "dark".into()
 }
 
 impl Default for Settings {
@@ -21,8 +29,18 @@ impl Default for Settings {
             show_last_move: true,
             show_territory: false,
             confirm_move: false,
+            theme: "dark".into(),
+            sidebar_collapsed: false,
         }
     }
+}
+
+/// 一条战绩记录点（评分为空表示未计段位的对局）
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RatingPoint {
+    pub date: String,
+    pub rating: i32,
+    pub won: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -35,6 +53,8 @@ pub struct Profile {
     pub puzzles_solved: Vec<String>,
     pub tutorial_done: Vec<String>,
     pub settings: Settings,
+    #[serde(default)]
+    pub rating_history: Vec<RatingPoint>,
 }
 
 impl Default for Profile {
@@ -48,7 +68,18 @@ impl Default for Profile {
             puzzles_solved: Vec::new(),
             tutorial_done: Vec::new(),
             settings: Settings::default(),
+            rating_history: Vec::new(),
         }
+    }
+}
+
+/// 在战绩曲线末尾追加一个记录点（限制总量）
+pub fn push_rating_history(prof: &mut Profile, won: Option<bool>) {
+    let point = RatingPoint { date: now_string(), rating: prof.rating, won };
+    prof.rating_history.push(point);
+    let len = prof.rating_history.len();
+    if len > 200 {
+        prof.rating_history.drain(0..len - 200);
     }
 }
 
@@ -119,12 +150,22 @@ pub fn data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 pub fn load_profile(app: &tauri::AppHandle) -> Profile {
     if let Ok(dir) = data_dir(app) {
         if let Ok(text) = fs::read_to_string(dir.join("profile.json")) {
-            if let Ok(prof) = serde_json::from_str(&text) {
+            if let Ok(mut prof) = serde_json::from_str::<Profile>(&text) {
+                if prof.rating_history.is_empty() {
+                    let t = now_string();
+                    prof.rating_history.push(RatingPoint { date: t, rating: prof.rating, won: None });
+                }
                 return prof;
             }
         }
     }
-    Profile::default()
+    let mut prof = Profile::default();
+    prof.rating_history.push(RatingPoint {
+        date: now_string(),
+        rating: prof.rating,
+        won: None,
+    });
+    prof
 }
 
 pub fn save_profile(app: &tauri::AppHandle, prof: &Profile) -> Result<(), String> {

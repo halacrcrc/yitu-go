@@ -154,6 +154,23 @@ export function handleTaskClick(e: TsEngine, spec: TaskStep, progress: number, p
       const done = progress + 1 >= moves.length;
       return { applied: true, done, captured, message: done ? undefined : undefined };
     }
+    case "connect": {
+      if (!tryRes.ok) return { applied: false, done: false, message: tryRes.error, captured: 0 };
+      // 在副本上模拟：只有真正连上才允许落子
+      const probe = e.shallowCopy();
+      probe.play(pos);
+      const [a, b] = (spec.seeds ?? []).map((c) => coordToPos(size, c));
+      if (a === undefined || b === undefined) {
+        e.play(pos);
+        return { applied: true, done: true, captured: tryRes.captured.length };
+      }
+      const { stones } = groupOn(probe.board, size, a);
+      if (!stones.includes(b)) {
+        return { applied: false, done: false, message: "这个点没有把两块棋连上，找找断点在哪。", captured: 0 };
+      }
+      e.play(pos);
+      return { applied: true, done: true, captured: tryRes.captured.length };
+    }
     default:
       return { applied: false, done: false, message: "未知任务类型", captured: 0 };
   }

@@ -78,15 +78,29 @@ export function Board({
         onMouseLeave={() => setHover(null)}
       >
         <defs>
-          <radialGradient id="stoneB" cx="0.36" cy="0.32" r="0.9">
-            <stop offset="0" stopColor="#6a6f74" />
-            <stop offset="0.35" stopColor="#33373b" />
-            <stop offset="1" stopColor="#0c0d0f" />
+          <radialGradient id="stoneB" cx="0.34" cy="0.28" r="0.95">
+            <stop offset="0" stopColor="#9aa1a8" />
+            <stop offset="0.18" stopColor="#5a6067" />
+            <stop offset="0.45" stopColor="#2c2f34" />
+            <stop offset="0.8" stopColor="#131417" />
+            <stop offset="1" stopColor="#060708" />
           </radialGradient>
-          <radialGradient id="stoneW" cx="0.36" cy="0.32" r="0.95">
-            <stop offset="0" stopColor="#ffffff" />
-            <stop offset="0.55" stopColor="#f2efe6" />
-            <stop offset="1" stopColor="#b3ac97" />
+          <radialGradient id="stoneW" cx="0.34" cy="0.28" r="1">
+            <stop offset="0" stopColor="#fffef9" />
+            <stop offset="0.4" stopColor="#f5f1e4" />
+            <stop offset="0.75" stopColor="#ded7c2" />
+            <stop offset="0.94" stopColor="#b8ae93" />
+            <stop offset="1" stopColor="#9c9176" />
+          </radialGradient>
+          <radialGradient id="stoneShine" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stopColor="#ffffff" stopOpacity="0.85" />
+            <stop offset="0.55" stopColor="#ffffff" stopOpacity="0.25" />
+            <stop offset="1" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="stoneShadow" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stopColor="#000000" stopOpacity="0.4" />
+            <stop offset="0.7" stopColor="#000000" stopOpacity="0.22" />
+            <stop offset="1" stopColor="#000000" stopOpacity="0" />
           </radialGradient>
           <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0" stopColor="#e2b56b" />
@@ -140,22 +154,43 @@ export function Board({
           );
         })}
 
-        {/* 棋子 */}
+        {/* 棋子（多层渐变 + 高光 + 接触阴影，模拟蛤碁石/黑曜石质感） */}
         {board.map((c, pos) => {
           if (!c) return null;
           const [cx, cy] = xy(pos);
           const isLast = lastMove === pos;
           const isDead = deadSet.has(pos);
+          const rShineX = cx - r * 0.34;
+          const rShineY = cy - r * 0.42;
           return (
             <g key={pos} className={isLast ? "stone-last" : undefined} opacity={isDead ? 0.42 : 1}>
-              <ellipse cx={cx + 1.2} cy={cy + 2.4} rx={r * 0.98} ry={r * 0.82} fill="#00000055" />
+              <ellipse cx={cx + r * 0.09} cy={cy + r * 0.16} rx={r * 1.02} ry={r * 0.92} fill="url(#stoneShadow)" />
               <circle
                 cx={cx}
                 cy={cy}
                 r={r}
                 fill={c === 1 ? "url(#stoneB)" : "url(#stoneW)"}
-                stroke={c === 1 ? "#00000088" : "#00000055"}
-                strokeWidth="1"
+                stroke={c === 1 ? "#000000cc" : "#00000066"}
+                strokeWidth="0.9"
+              />
+              {/* 主高光 */}
+              <ellipse
+                cx={rShineX}
+                cy={rShineY}
+                rx={c === 1 ? r * 0.5 : r * 0.62}
+                ry={c === 1 ? r * 0.36 : r * 0.46}
+                fill="url(#stoneShine)"
+                opacity={c === 1 ? 0.5 : 0.9}
+                transform={`rotate(-28 ${rShineX} ${rShineY})`}
+              />
+              {/* 底部反光 */}
+              <ellipse
+                cx={cx + r * 0.22}
+                cy={cy + r * 0.52}
+                rx={r * 0.42}
+                ry={r * 0.16}
+                fill="#ffffff"
+                opacity={c === 1 ? 0.08 : 0.3}
               />
               {isLast && (
                 <circle cx={cx} cy={cy} r={r * 0.38} fill="none" stroke={c === 1 ? "#e8e4d8" : "#2b2b2b"} strokeWidth="2" />

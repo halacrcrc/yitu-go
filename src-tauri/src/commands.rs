@@ -229,6 +229,7 @@ pub fn resign(app: AppHandle, state: State<GameMutex>, side: String) -> Result<G
             if ps == rs {
                 let opp = AI_LEVEL_RATINGS[(g.ai_level.clamp(1, 8) - 1) as usize];
                 store::apply_rating(&mut prof, opp, s != ps);
+                store::push_rating_history(&mut prof, Some(s != ps));
             }
         }
     }
@@ -371,6 +372,7 @@ pub fn confirm_result(app: AppHandle, state: State<GameMutex>) -> Result<GameSta
                 Side::White => w > b,
             };
             store::apply_rating(&mut prof, opp, player_won);
+            store::push_rating_history(&mut prof, Some(player_won));
         }
     }
 

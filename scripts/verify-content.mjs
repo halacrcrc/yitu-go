@@ -265,11 +265,63 @@ for (const ch of content.tutorials) {
           }
         }
         report(`${ch.id}#${si} ${step.title}`, ok, detail || "ok");
+      } else if (step.kind === "connect") {
+        const mv = toPos(size, step.solution[0]);
+        if (mv === null || mv === undefined || Number.isNaN(mv)) { report(`${ch.id}#${si} ${step.title}`, false, "缺少 solution"); continue; }
+        const r = e.play(mv);
+        if (!r.ok) { report(`${ch.id}#${si} ${step.title}`, false, `正解不合法: ${r.error}`); continue; }
+        // 验证两块种子棋连成一体
+        const seedA = toPos(size, step.seeds[0]);
+        const color = e.board[seedA];
+        const st = [seedA];
+        const seen = new Set([seedA]);
+        while (st.length) {
+          const cur = st.pop();
+          for (const nb of neighbors(e.size, cur)) {
+            if (e.board[nb] === color && !seen.has(nb)) { seen.add(nb); st.push(nb); }
+          }
+        }
+        const seedB = toPos(size, step.seeds[1]);
+        report(`${ch.id}#${si} ${step.title}`, seen.has(seedB), "连接后两块种子不在同一块");
       }
     } catch (err) {
       report(`${ch.id}#${si} ${step.title}`, false, err.message);
     }
   }
+}
+
+// ---------- 验证教程演示步骤与定式库 ----------
+console.log("验证演示/定式库着法...");
+function verifySequence(name, size, moves, freeSide = false) {
+  const e = new TsEngine(size);
+  for (const mv of moves) {
+    const side = mv[0] === "w" ? WHITE : BLACK;
+    const coord = mv.slice(1);
+    const p = toPos(size, coord);
+    if (e.board[p] !== 0) { report(name, false, `${mv} 位置已有棋子`); return; }
+    if (!freeSide && e.turn !== side) { report(name, false, `${mv} 落子方不符（应为${e.turn === 1 ? "黑" : "白"}）`); return; }
+    const r = e.tryMove(p, side);
+    if (!r.ok) { report(name, false, `${mv} 不合法: ${r.error}`); return; }
+    if (r.captured.length > 0) { report(name, false, `${mv} 发生了提子（定式/布局不应提子）`); return; }
+    e.turn = side;
+    e.play(p);
+  }
+  report(name, true, "ok");
+}
+
+for (const ch of content.tutorials) {
+  for (const [si, step] of ch.steps.entries()) {
+    if (step.type === "demo") {
+      verifySequence(`${ch.id}#${si} ${step.title}`, step.size || 19, step.moves);
+      if (step.captions && step.captions.length !== step.moves.length) {
+        report(`${ch.id}#${si} captions`, false, `captions ${step.captions.length} != moves ${step.moves.length}`);
+      }
+    }
+  }
+}
+
+for (const o of content.openings || []) {
+  verifySequence(`定式库 ${o.id} ${o.name}`, o.size || 19, o.moves, !!o.freeSide);
 }
 
 function anyLegal(e, side) {

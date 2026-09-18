@@ -1,8 +1,8 @@
 // 新手教程（闯关式互动教学）
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Board } from "../components/Board";
 import { Icon } from "../components/ui";
-import { content, type Chapter, type TaskStep } from "../content";
+import { content, coordToPos, parsePrefixedMove, type Chapter, type TaskStep } from "../content";
 import { makeBoard, handleTaskClick, sideOf } from "../goal";
 import { TsEngine } from "../engine";
 import { useStore } from "../store";
@@ -78,6 +78,8 @@ export function TutorialView() {
               <p key={i} className="text-body">{p}</p>
             ))}
           </div>
+        ) : step.type === "demo" ? (
+          <DemoStepView key={`${chapterIdx}-${stepIdx}`} step={step} />
         ) : (
           <TaskStepView
             key={`${chapterIdx}-${stepIdx}`}
@@ -158,6 +160,82 @@ function TaskStepView({ step, onDone }: { step: TaskStep; onDone: () => void }) 
       </div>
       <div className="task-board">
         <Board size={size} board={engine.board} showCoords={false} interactive={!done} playSide={side} onPosClick={onClick} compact />
+      </div>
+    </div>
+  );
+}
+
+function DemoStepView({ step }: { step: import("../content").DemoStep }) {
+  const { profile } = useStore();
+  const size = step.size || 19;
+  const total = step.moves.length;
+  const [cursor, setCursor] = useState(0);
+  const [playing, setPlaying] = useState(false);
+
+  const state = useMemo(() => {
+    const e = new TsEngine(size);
+    let last: number | null = null;
+    for (let i = 0; i < cursor && i < total; i++) {
+      const { side, coord } = parsePrefixedMove(step.moves[i]);
+      const p = coordToPos(size, coord);
+      e.turn = (side === 1 ? 1 : 2) as 1 | 2;
+      e.play(p);
+      last = p;
+    }
+    return { engine: e, last };
+  }, [cursor, size, step.moves]);
+
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(() => {
+      setCursor((c) => {
+        if (c >= total) {
+          setPlaying(false);
+          return c;
+        }
+        return c + 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [playing, total]);
+
+  const stepTo = (d: number) => {
+    setPlaying(false);
+    setCursor((c) => Math.max(0, Math.min(total, c + d)));
+  };
+
+  const caption =
+    cursor === 0 ? step.captions[0] : step.captions[Math.min(cursor - 1, step.captions.length - 1)] ?? "";
+
+  return (
+    <div className="task-step">
+      <div className="task-info">
+        <h3>{step.title}</h3>
+        {step.body.split("\n\n").map((p, i) => (
+          <p key={i} className="text-body">{p}</p>
+        ))}
+        <div className={`task-msg${cursor >= total ? " ok" : ""}`}>{cursor >= total ? `✔ ${caption}` : caption}</div>
+        <div className="row gap wrap">
+          <button className="btn small" onClick={() => stepTo(-1)} disabled={cursor === 0}><Icon name="chevronLeft" size={14} /> 上一手</button>
+          <button className="btn small" onClick={() => (cursor >= total ? null : setPlaying(!playing))}>
+            <Icon name={playing ? "pause" : "playSolid"} size={14} /> {playing ? "暂停" : "自动演示"}
+          </button>
+          <button className="btn small" onClick={() => stepTo(1)} disabled={cursor >= total}>下一手 <Icon name="chevronRight" size={14} /></button>
+          <button className="btn ghost small" onClick={() => { setPlaying(false); setCursor(0); }}><Icon name="undo" size={14} /> 从头看</button>
+        </div>
+        <div className="replay-pos muted small" style={{ textAlign: "left", marginTop: 8 }}>
+          第 {cursor} / {total} 手
+        </div>
+      </div>
+      <div className="task-board demo-board">
+        <Board
+          size={size}
+          board={state.engine.board}
+          lastMove={profile?.settings.show_last_move === false ? null : state.last}
+          showCoords={false}
+          interactive={false}
+          compact
+        />
       </div>
     </div>
   );

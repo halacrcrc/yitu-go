@@ -3,11 +3,17 @@ import { create } from "zustand";
 import { api, type GameStateDto, type Profile, type RecordMeta } from "./api";
 import { playCapture, playError, playStone } from "./sound";
 
-export type View = "home" | "play" | "tutorial" | "puzzle" | "records" | "profile";
+export type View = "home" | "play" | "tutorial" | "puzzle" | "library" | "records" | "profile";
+
+const LS_SIDEBAR = "yitu_sidebar_collapsed";
+const LS_THEME = "yitu_theme";
 
 interface AppState {
   view: View;
   setView: (v: View) => void;
+
+  collapsed: boolean;
+  toggleCollapsed: () => void;
 
   profile: Profile | null;
   loadProfile: () => Promise<void>;
@@ -33,21 +39,36 @@ interface AppState {
   clearAutosaveInfo: () => void;
 }
 
+function applyTheme(theme: string | undefined) {
+  const t = theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem(LS_THEME, t);
+}
+
 export const useStore = create<AppState>((set, get) => ({
   view: "home",
   setView: (v) => set({ view: v }),
+
+  collapsed: localStorage.getItem(LS_SIDEBAR) === "1",
+  toggleCollapsed: () => {
+    const next = !get().collapsed;
+    localStorage.setItem(LS_SIDEBAR, next ? "1" : "0");
+    set({ collapsed: next });
+  },
 
   profile: null,
   loadProfile: async () => {
     try {
       const p = await api.getProfile();
       set({ profile: p });
+      applyTheme(p.settings.theme);
     } catch (e) {
       console.error(e);
     }
   },
   saveProfile: async (p) => {
     set({ profile: p });
+    applyTheme(p.settings.theme);
     try {
       await api.updateProfile(p);
     } catch (e) {
