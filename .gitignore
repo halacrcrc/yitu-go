@@ -1,0 +1,22 @@
+# 前端
+node_modules/
+dist/
+
+# Rust / Tauri
+/src-tauri/target/
+/src-tauri/gen/
+
+# 构建产物与安装包
+*.exe
+*.msi
+*.msix
+*.appx
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/

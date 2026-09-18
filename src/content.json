@@ -1,0 +1,304 @@
+{
+  "aiLevels": [
+    { "level": 1, "name": "木木小童", "rating": 650, "label": "入门 · 约25级" },
+    { "level": 2, "name": "入门棋童", "rating": 850, "label": "初级 · 约18级" },
+    { "level": 3, "name": "新手棋士", "rating": 1050, "label": "初级 · 约12级" },
+    { "level": 4, "name": "进阶棋士", "rating": 1250, "label": "中级 · 约8级" },
+    { "level": 5, "name": "业余好手", "rating": 1450, "label": "中级 · 约4级" },
+    { "level": 6, "name": "业余强豪", "rating": 1650, "label": "高级 · 约1级" },
+    { "level": 7, "name": "冲段高手", "rating": 1850, "label": "高级 · 业余2段" },
+    { "level": 8, "name": "棋院大师", "rating": 2100, "label": "特级 · 业余5段" }
+  ],
+  "tutorials": [
+    {
+      "id": "t1",
+      "title": "初识围棋",
+      "desc": "认识棋盘、棋子和落子规则",
+      "steps": [
+        {
+          "type": "text",
+          "title": "欢迎来到围棋的世界",
+          "body": "围棋起源于中国，已有四千多年历史，是世界上最古老的棋类游戏。\n\n两人对弈，黑棋先行，双方轮流把棋子下在棋盘的交叉点上。最终围住地盘多的一方获胜。\n\n规则简单，变化却比宇宙中的原子还多——别担心，我们会一步一步来。"
+        },
+        {
+          "type": "task",
+          "title": "热身：落第一子",
+          "body": "棋盘正中心的星位叫「天元」。\n\n请在天元上落一颗黑子：点击棋盘最中间的交叉点。",
+          "kind": "moveto",
+          "pos": ["ee"],
+          "success": "漂亮！这就是你的第一手棋。围棋中黑棋永远先行。"
+        },
+        {
+          "type": "task",
+          "title": "轮流落子",
+          "body": "黑棋下在天元后，轮到白棋。\n\n现在假设你是白棋，请点击棋盘上任意一个空位落子。",
+          "stones": { "black": ["ee"], "white": [] },
+          "toMove": "w",
+          "kind": "any",
+          "success": "很好！双方就是这样一人一手轮流落子。棋子一旦落下就不能移动（除非被提走）。"
+        },
+        {
+          "type": "text",
+          "title": "棋盘的小知识",
+          "body": "正式比赛使用 19 路棋盘（19×19 = 361 个交叉点）。\n\n初学者建议从 9 路或 13 路小棋盘开始，一局棋短，更容易看清全局。\n\n棋盘上的九个黑圆点叫「星位」，可以帮助你定位。"
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "title": "气：棋子的生命",
+      "desc": "学会数气，理解提子",
+      "steps": [
+        {
+          "type": "text",
+          "title": "什么是「气」",
+          "body": "棋子在棋盘上直线紧邻的空交叉点，就是这颗棋子的「气」。\n\n气是棋子的生命线：气被全部堵住，棋子就会被提离棋盘。\n\n看右边的棋盘：白子上下左右四个方向，被黑棋堵住了三面，只剩上面一口气。"
+        },
+        {
+          "type": "task",
+          "title": "提掉第一颗白子",
+          "body": "白子只剩最后一口气了！\n\n点击白子最后的气所在的位置，把它提掉。",
+          "stones": { "black": ["de", "fe", "ed"], "white": ["ee"] },
+          "toMove": "b",
+          "kind": "capture",
+          "targets": ["ee"],
+          "success": "恭喜！你提掉了第一颗棋子。白子没有气了，就要从棋盘上拿走。"
+        },
+        {
+          "type": "text",
+          "title": "不同位置的气",
+          "body": "棋子在不同位置，气数不同：\n\n· 中央：最多 4 口气\n· 边线：最多 3 口气\n· 角上：最多 2 口气\n\n所以有句棋谚：「角上容易被吃」。初学者要特别小心把棋子下在角上和边线。"
+        },
+        {
+          "type": "task",
+          "title": "边线提子",
+          "body": "这条白子在边线上，气已经很少了。\n\n找到它最后一口气，提掉它！",
+          "stones": { "black": ["ad", "be"], "white": ["ae"] },
+          "toMove": "b",
+          "kind": "capture",
+          "targets": ["ae"],
+          "success": "正是！边线和角上的棋子气少，是最容易被吃掉的。"
+        }
+      ]
+    },
+    {
+      "id": "t3",
+      "title": "提子与救子",
+      "desc": "整块棋的气，逃跑与连接",
+      "steps": [
+        {
+          "type": "text",
+          "title": "同色棋子连成一体",
+          "body": "直线紧邻的同色棋子连成一个整体，共享所有的气。\n\n要提掉一块棋，必须填掉它「所有」的气。\n\n右边的两颗白子连在一起，但只剩最后一口气了——一次提掉它们！"
+        },
+        {
+          "type": "task",
+          "title": "一次提两子",
+          "body": "两颗连在一起的白子只剩一口气。\n\n点击它最后的位置，把两颗白子一起提掉。",
+          "stones": { "black": ["de", "fe", "ed", "eg", "df"], "white": ["ee", "ef"] },
+          "toMove": "b",
+          "kind": "capture",
+          "targets": ["ee", "ef"],
+          "success": "一箭双雕！连在一起的棋子会同时被提走。"
+        },
+        {
+          "type": "task",
+          "title": "逃跑：被打吃怎么办",
+          "body": "轮到黑棋下，但这颗黑子只剩一口气，再不理它就会被提掉——这叫「被打吃」。\n\n黑棋现在可以向中腹长出一口气：点击正确位置，让它逃出生天！",
+          "stones": { "black": ["ee"], "white": ["de", "fe", "ed"] },
+          "toMove": "b",
+          "kind": "escape",
+          "seed": "ee",
+          "minLibs": 3,
+          "success": "逃出来了！长出之后它有三口气，白棋一时半会儿吃不掉它了。"
+        },
+        {
+          "type": "text",
+          "title": "连接与切断",
+          "body": "把两块自己的棋连在一起，气会合并，变得更安全——这叫「连接」。\n\n反过来，下在对方两块棋之间的要点上，把它们分开逐个击破——这叫「切断」。\n\n「连接」与「切断」，是围棋攻防的两大主题。"
+        }
+      ]
+    },
+    {
+      "id": "t4",
+      "title": "禁入点",
+      "desc": "哪些点不能下",
+      "steps": [
+        {
+          "type": "text",
+          "title": "不能自杀",
+          "body": "如果在一个点落子后，这颗棋子立刻没有任何气，又提不掉对方任何棋子——这个点就是「禁入点」，不能下。\n\n就像人不能走进死胡同把自己憋死。\n\n注意：如果落子能提掉对方的子，就不算禁入点——先提子，再数气！"
+        },
+        {
+          "type": "task",
+          "title": "找出禁入点",
+          "body": "棋盘中央的空点被白棋四面包围。\n\n试着把黑棋下到这个点上，看看会发生什么。",
+          "stones": { "black": [], "white": ["de", "fe", "ed", "ef"] },
+          "toMove": "b",
+          "kind": "forbidden",
+          "pos": ["ee"],
+          "message": "看到了吗？黑棋下进去马上就没气，这就是「禁入点」。白棋自己也一样不能下这里（除非能提掉黑棋）。",
+          "success": "体验过就记住了：四面被围的空点，谁都不能下。"
+        }
+      ]
+    },
+    {
+      "id": "t5",
+      "title": "打劫",
+      "desc": "围棋中最特别的规则",
+      "steps": [
+        {
+          "type": "text",
+          "title": "什么是劫",
+          "body": "看右边的棋形：黑白互相只差一口气，形成一个「劫」。\n\n白棋现在可以提掉黑子。但黑棋能否马上提回来呢？\n\n如果允许立刻回提，双方就会你提我、我提你，永远循环下去。所以围棋规则规定：提劫之后，对方不能立刻回提，必须先在别处下一手棋（叫做「寻劫材」）。"
+        },
+        {
+          "type": "task",
+          "title": "先提劫",
+          "body": "你是白棋。点击要点，提掉那颗黑子。",
+          "stones": { "black": ["ed", "de", "fe", "ef"], "white": ["dd", "fd", "ec"] },
+          "toMove": "w",
+          "kind": "seq",
+          "moves": ["ee"],
+          "success": "提劫成功！注意：黑棋现在被规则禁止立刻回提。"
+        },
+        {
+          "type": "task",
+          "title": "不能立刻回提",
+          "body": "现在轮到黑棋（你）。\n\n按规则，你不能马上在劫点回提。请先在别处下一手棋（比如 C3 附近找个「劫材」）。",
+          "stones": { "black": ["de", "fe", "ef"], "white": ["dd", "fd", "ec", "ee"] },
+          "toMove": "b",
+          "kind": "moveto",
+          "pos": ["cc"],
+          "forbidden": [
+            {
+              "pos": "ed",
+              "message": "不能立刻回提！提劫后必须先在别处下一手（寻劫材）。去 C3 试试。"
+            }
+          ],
+          "success": "好棋！这就是寻劫材。等白棋应了一手之后，黑棋就可以回提劫了。"
+        },
+        {
+          "type": "text",
+          "title": "劫的价值",
+          "body": "劫是围棋中最富戏剧性的战斗：劫材多的一方往往能赢下整个劫。\n\n新手只需记住两条：① 提劫后对方不能立刻回提；② 打劫时别忘了先找劫材。\n\n本游戏的 AI 也严格遵守打劫规则。"
+        }
+      ]
+    },
+    {
+      "id": "t6",
+      "title": "死活基础",
+      "desc": "两只真眼活棋",
+      "steps": [
+        {
+          "type": "text",
+          "title": "眼：棋子的根据地",
+          "body": "被自己棋子完全包围的空点，叫做「眼」。\n\n一块棋如果同时拥有两只真眼，就是活棋——对方无法同时填掉两只眼（填第一只眼会被提掉，等于帮自杀）。\n\n只有一只眼（或没有眼）的棋，迟早会被吃掉。"
+        },
+        {
+          "type": "task",
+          "title": "做两只眼",
+          "body": "这块黑棋被白棋包围，中间有三个相连的空点（叫「直三」）。\n\n黑先：点在中间那个点上，一手做成两只眼，这块棋就活了！",
+          "stones": {
+            "black": ["aa", "ab", "bb", "cb", "db", "eb", "ea"],
+            "white": ["ac", "bc", "cc", "dc", "ec", "fc", "fb", "fa"]
+          },
+          "toMove": "b",
+          "kind": "eyes",
+          "seed": "ab",
+          "minEyes": 2,
+          "solution": ["ca"],
+          "success": "两只真眼做成了，这块黑棋活了！以后看到「直三」，记住点中间。"
+        },
+        {
+          "type": "task",
+          "title": "点杀对方的直三",
+          "body": "攻守易位！这次白棋有一块「直三」眼形的棋。\n\n黑先：先点在对方眼形的要害上，然后跟着提示紧气，把整块白棋吃掉！",
+          "stones": {
+            "black": ["ac", "bc", "cc", "dc", "ec", "fb", "fa"],
+            "white": ["aa", "ab", "bb", "cb", "db", "eb", "ea"]
+          },
+          "toMove": "b",
+          "kind": "seq",
+          "moves": ["ca", "ba", "ba"],
+          "replies": ["pass", "da"],
+          "hint": "第一步点在白棋眼形的正中间。",
+          "success": "干得漂亮！先点要害，再紧气，最后全部提掉——这就是杀棋的基本流程。"
+        },
+        {
+          "type": "text",
+          "title": "常见死活形",
+          "body": "围出三个相连空点的「直三」「曲三」，点中间即可杀棋/做活。\n\n四个空点的「方四」无药可救（点哪里都死）；「直四」「曲四」则两头各有一眼，是活形。\n\n死活是围棋的基本功，本游戏的「死活题」模块有更多练习。"
+        }
+      ]
+    },
+    {
+      "id": "t7",
+      "title": "终局与胜负",
+      "desc": "怎么算谁赢",
+      "steps": [
+        {
+          "type": "text",
+          "title": "什么时候终局",
+          "body": "当双方都认为没有值得下的大棋时，会连续各停一手（虚着），棋局结束。\n\n在本游戏中：点「停一手」按钮，双方各停一手后自动进入数子阶段；你也可以提前点「申请数子」。\n\n数子阶段可以点击棋子标记死子（整块切换），确认后自动计算胜负。"
+        },
+        {
+          "type": "text",
+          "title": "中国规则·数子法",
+          "body": "本游戏采用中国规则：\n\n你的得分 = 棋盘上你的活子 + 你围住的空点。\n\n黑棋先行有优势，所以黑棋要「贴目」还给白棋（19 路 7.5 目，13 路 6.5 目，9 路 5.5 目；让子棋只贴 0.5）。\n\n黑总分 > 白总分，黑胜；反之白胜。"
+        },
+        {
+          "type": "text",
+          "title": "新手建议",
+          "body": "初学阶段不必纠结输赢：\n\n· 每块棋尽量做出两只眼\n· 别下在一二线（除非收官）\n· 被打吃时先看看能不能逃或反提\n· 下完棋用「复盘」看看每一步\n\n赢棋会提升你的等级分，输棋也会小幅下降——放平心态，慢慢涨棋。"
+        }
+      ]
+    },
+    {
+      "id": "t8",
+      "title": "布局常识",
+      "desc": "金角银边草肚皮",
+      "steps": [
+        {
+          "type": "text",
+          "title": "金角银边草肚皮",
+          "body": "围同样的地盘：\n\n· 在角上，用子最少（金角）\n· 在边上线，其次（银边）\n· 在中腹，用子最多（草肚皮）\n\n所以布局的一般顺序是：先占角，再守角或挂角，然后拆边，最后向中腹发展。"
+        },
+        {
+          "type": "task",
+          "title": "占一个角",
+          "body": "空棋盘，黑先。\n\n请在任意一个角的三线或四线星位落子（推荐 C3 / G3 / C7 / G7 这类位置）。",
+          "kind": "moveto",
+          "pos": ["cc", "gc", "cg", "gg"],
+          "success": "好开局！三线、四线是占角的黄金位置。"
+        },
+        {
+          "type": "text",
+          "title": "级位与段位",
+          "body": "围棋水平用级位和段位衡量：\n\n· 业余：30 级 → 1 级（数字越小越强）\n· 业余段位：1 段 → 7 段\n· 职业段位：初段 → 九段\n\n在本游戏中，与 AI 对弈会获得等级分：赢了涨分，输了掉分。分数达标自动晋升段位，个人主页可以随时查看。\n\n和比你强的对手下棋时，可以申请让子（让 2~9 子），让棋力差距变成公平对局。"
+        }
+      ]
+    }
+  ],
+  "puzzles": [
+    { "id": "p1-1", "tier": 1, "title": "提子入门", "prompt": "黑先，提掉这颗白子", "kind": "exact", "stones": { "black": ["de", "fe", "ed"], "white": ["ee"] }, "toMove": "b", "solution": ["ef"], "explain": "白子只剩最后一口气，直接紧气提掉。" },
+    { "id": "p1-2", "tier": 1, "title": "角上提子", "prompt": "黑先，提掉角上的白子", "kind": "exact", "stones": { "black": ["ab"], "white": ["aa"] }, "toMove": "b", "solution": ["ba"], "explain": "角上的棋子只有两口气，是最好吃的。" },
+    { "id": "p1-3", "tier": 1, "title": "提两子", "prompt": "黑先，一次提掉两颗白子", "kind": "exact", "stones": { "black": ["de", "fe", "ed", "eg", "df"], "white": ["ee", "ef"] }, "toMove": "b", "solution": ["ff"], "explain": "连在一起的白子共享最后一口气，一提全走。" },
+    { "id": "p1-4", "tier": 1, "title": "边线提子", "prompt": "黑先，提掉边线的白子", "kind": "exact", "stones": { "black": ["ad", "be"], "white": ["ae"] }, "toMove": "b", "solution": ["af"], "explain": "边线的棋子最多三口气，紧气即可。" },
+    { "id": "p1-5", "tier": 1, "title": "提三子", "prompt": "黑先，提掉三个连在一起的白子", "kind": "exact", "stones": { "black": ["dd", "fd", "ec", "de", "fe", "df", "ff"], "white": ["ed", "ee", "ef"] }, "toMove": "b", "solution": ["eg"], "explain": "数清楚整块白棋的气：只差最后一口。" },
+    { "id": "p1-6", "tier": 1, "title": "边线提二子", "prompt": "黑先，提掉边线两颗白子", "kind": "exact", "stones": { "black": ["ba", "bb"], "white": ["aa", "ab"] }, "toMove": "b", "solution": ["ac"], "explain": "两颗白子抱团也只共享一口气。" },
+
+    { "id": "p2-1", "tier": 2, "title": "双打吃", "prompt": "黑先，一手同时打吃两块白棋", "kind": "exact", "stones": { "black": ["cd", "dc", "gd", "fc"], "white": ["dd", "fd"] }, "toMove": "b", "solution": ["ed"], "explain": "双打吃！白棋只能救一边，你总能吃到另一边。" },
+    { "id": "p2-2", "tier": 2, "title": "一子双提", "prompt": "黑先，一手同时提掉两块白棋", "kind": "exact", "stones": { "black": ["cd", "dc", "de", "gd", "fc", "fe"], "white": ["dd", "fd"] }, "toMove": "b", "solution": ["ed"], "explain": "两块白棋共用最后一口气，落在公共气上，双提！" },
+    { "id": "p2-3", "tier": 2, "title": "逃出虎口", "prompt": "黑先，救出被打吃的黑子", "kind": "escape", "stones": { "black": ["ee"], "white": ["de", "fe", "ed"] }, "toMove": "b", "seed": "ee", "minLibs": 3, "solution": ["ef"], "explain": "向中腹长出，一口气变成三口，暂时安全。" },
+    { "id": "p2-4", "tier": 2, "title": "追杀向边", "prompt": "黑先，把这块白棋赶向边线并吃掉", "kind": "seq", "stones": { "black": ["bc", "dd"], "white": ["dc"] }, "toMove": "b", "solution": ["ec", "eb", "bb"], "replies": ["db", "cb"], "explain": "打吃要把对方往边线赶：边线气少，逃跑空间小。" },
+    { "id": "p2-5", "tier": 2, "title": "反提救子", "prompt": "黑先，自己的子被打吃了，但先别慌", "kind": "exact", "stones": { "black": ["cd", "ed", "de"], "white": ["ce", "ee", "dd"] }, "toMove": "b", "solution": ["dc"], "explain": "白棋打吃你的同时自己也只剩一口气——先提掉它，两个问题一起解决。" },
+    { "id": "p2-6", "tier": 2, "title": "边线抱团", "prompt": "黑先，提掉边线相连的白子", "kind": "exact", "stones": { "black": ["bb", "cb", "bd", "cd", "ab"], "white": ["bc", "cc"] }, "toMove": "b", "solution": ["dc"], "explain": "先数清整块棋的气，再紧最后一口。" },
+
+    { "id": "p3-1", "tier": 3, "title": "点杀直三", "prompt": "黑先，杀掉这块白棋", "kind": "seq", "stones": { "black": ["ac", "bc", "cc", "dc", "ec", "fb", "fa"], "white": ["aa", "ab", "bb", "cb", "db", "eb", "ea"] }, "toMove": "b", "solution": ["ca", "ba", "ba"], "replies": ["pass", "da"], "explain": "直三点中间（要害）。白棋无法吃掉你的子（白自己填眼是自杀），只能眼睁睁被杀。" },
+    { "id": "p3-2", "tier": 3, "title": "做眼活棋", "prompt": "黑先，一手做成两只眼", "kind": "eyes", "stones": { "black": ["aa", "ab", "bb", "cb", "db", "eb", "ea"], "white": ["ac", "bc", "cc", "dc", "ec", "fc", "fb", "fa"] }, "toMove": "b", "seed": "ab", "minEyes": 2, "solution": ["ca"], "explain": "直三点中间，左右各成一眼——两只真眼，活棋！" },
+    { "id": "p3-3", "tier": 3, "title": "倒扑", "prompt": "黑先，用「倒扑」吃掉白棋（以 C1 为例，C2 对称同理）", "kind": "seq", "stones": { "black": ["cc", "dc", "ea", "eb", "ac", "bc"], "white": ["aa", "ab", "ba", "bb", "da", "db"] }, "toMove": "b", "solution": ["ca", "ca"], "replies": ["cb"], "explain": "先把子投进白棋仅剩的两口「眼」里送吃；白棋提掉后，整块白棋只剩一口气，回手全部提光——这就是倒扑。" },
+    { "id": "p3-4", "tier": 3, "title": "点杀曲三", "prompt": "黑先，杀掉这块曲三眼形的白棋", "kind": "seq", "stones": { "black": ["ac", "bd", "cd", "dd", "ec", "eb", "ea"], "white": ["aa", "ab", "bb", "bc", "cc", "dc", "db", "da"] }, "toMove": "b", "solution": ["ca", "ba", "ba"], "replies": ["pass", "cb"], "explain": "曲三和直三一样：点在拐角的要害上，一击致命。" },
+    { "id": "p3-5", "tier": 3, "title": "对杀紧气", "prompt": "黑先，与白棋对杀（双方三口气，全是公气）", "kind": "seq", "stones": { "black": ["ce", "df", "ef", "ff", "ge", "db", "eb", "fb", "cd", "gc"], "white": ["dc", "ec", "fc"] }, "toMove": "b", "solution": ["dd", "fd"], "replies": ["ed"], "explain": "对杀先紧公气：谁先动手谁赢。你的黑棋紧气的同时自己也少一口气，但轮到你紧最后一口时，先提的是你。" }
+  ]
+}
