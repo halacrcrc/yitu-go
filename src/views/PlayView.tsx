@@ -157,8 +157,23 @@ export function PlayView() {
 
   if (!game) {
     return (
-      <div className="play">
-        <NewGameModal open={showNewGame} onClose={() => setShowNewGame(false)} canClose={!!game} />
+      <div className="play-empty">
+        <NewGameModal open={showNewGame} onClose={() => setShowNewGame(false)} canClose />
+        <div className="card empty-state play-empty-card">
+          <div className="empty-stones">
+            <span className="hs hs-b" />
+            <span className="hs hs-w" />
+          </div>
+          <h3>开始一局棋</h3>
+          <p className="muted">
+            与 8 级 AI 对战或双人同屏对弈，9/13/19 路棋盘任选。
+            <br />
+            对局进度自动保存，随时可以继续。
+          </p>
+          <button className="btn primary lg" onClick={() => setShowNewGame(true)}>
+            <Icon name="playSolid" size={18} /> 开始新对局
+          </button>
+        </div>
       </div>
     );
   }
@@ -268,7 +283,7 @@ export function PlayView() {
         </div>
       </Modal>
 
-      <NewGameModal open={showNewGame} onClose={() => setShowNewGame(false)} canClose={!!game} />
+      <NewGameModal open={showNewGame} onClose={() => setShowNewGame(false)} canClose />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // 内容类型与共享工具（段位换算、坐标）
 import contentJson from "./content.json";
 
-export const APP_VERSION = "1.2.0";
+export const APP_VERSION = "1.2.1";
 
 export interface AiLevel {
   level: number;
