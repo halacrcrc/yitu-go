@@ -976,7 +976,7 @@ input[type="range"] { height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ===== 移动端适配 ===== */
-@media (max-width: 860px) {
+@media (max-width: 860px) and (min-height: 481px) {
   .app { flex-direction: column !important; }
   .sidebar {
     flex-direction: row !important;
@@ -1002,8 +1002,8 @@ input[type="range"] { height: 4px; }
   .tutorial, .puzzle, .library { flex-direction: column !important; align-items: stretch !important; }
   .play { align-items: center !important; }
   .play-side, .puzzle-side { width: 100% !important; max-height: none; }
-  .board-svg { width: min(94vw, calc(100vh - 240px), 520px) !important; }
-  .task-board .board-svg, .demo-board .board-svg { width: min(88vw, calc(100vh - 300px), 400px) !important; }
+  .board-svg { width: min(94vw, max(240px, calc(100vh - 240px)), 520px) !important; }
+  .task-board .board-svg, .demo-board .board-svg { width: min(88vw, max(200px, calc(100vh - 300px)), 400px) !important; }
   .tutorial-list, .puzzle-list, .library-list { width: 100% !important; }
   .puzzle-grid { max-height: 32vh; }
   .home-grid { grid-template-columns: 1fr 1fr; }
@@ -1019,6 +1019,51 @@ input[type="range"] { height: 4px; }
 }
 
 /* 深色导航点在小屏的绝对定位修正 */
-@media (max-width: 860px) {
+@media (max-width: 860px) and (min-height: 481px) {
   .nav-dot { position: static; margin-left: 2px; }
+}
+
+/* ===== 横屏矮屏（手机横持 / 折叠屏外屏） ===== */
+@media (max-width: 860px) and (max-height: 480px) {
+  .app { flex-direction: row !important; }
+  .sidebar {
+    width: 60px !important;
+    padding: 8px 6px !important;
+    border-right: 1px solid var(--border);
+    border-bottom: none !important;
+  }
+  .sidebar .logo, .sidebar-foot { display: none !important; }
+  .nav-item { flex-direction: column; gap: 2px; padding: 8px 0 !important; font-size: 9.5px; }
+  .nav-item svg { width: 16px; height: 16px; }
+  .nav-dot { position: static; margin: 0; }
+  .content { padding: 8px; }
+
+  .play { flex-direction: row !important; align-items: center !important; justify-content: center; }
+  .play-side { width: 236px !important; max-height: calc(100vh - 16px) !important; overflow-y: auto; }
+  .play-board .board-svg { width: min(calc(100vh - 20px), calc(100vw - 330px), 620px) !important; }
+  .task-step, .puzzle-body, .replay-body, .tutorial, .puzzle, .library { flex-direction: column !important; }
+  .task-board .board-svg, .demo-board .board-svg { width: min(calc(100vh - 24px), 320px) !important; }
+  .movelist { max-height: 110px; }
+  .scoring-banner { font-size: 12px; }
+}
+
+/* ===== 平板（861–1080px）：侧栏自动图标化，棋盘留足空间 ===== */
+@media (min-width: 861px) and (max-width: 1080px) {
+  .sidebar { width: 64px !important; padding: 14px 8px !important; }
+  .logo div, .nav-item span, .rank-chip span, .rank-chip em { display: none !important; }
+  .logo { justify-content: center; padding-bottom: 12px; }
+  .nav-item { justify-content: center; padding: 11px 0; }
+  .collapse-btn { margin: 0 auto 10px; }
+  .play-board .board-svg { width: min(calc(100vh - 46px), calc(100vw - 350px), 820px); }
+  .puzzle-board .board-svg { width: min(calc(100vh - 64px), calc(100vw - 600px), 600px); }
+  .replay-board .board-svg { width: min(calc(100vh - 64px), calc(100vw - 420px), 640px); }
+}
+
+/* ===== 小屏手机（≤480px） ===== */
+@media (max-width: 480px) {
+  .home-grid { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 24px; }
+  .hero-actions .btn { width: 100%; justify-content: center; }
+  .modal { width: 96vw !important; }
+  .content { padding: 10px; }
 }

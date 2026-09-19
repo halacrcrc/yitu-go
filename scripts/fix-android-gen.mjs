@@ -22,7 +22,55 @@ if (!props.includes("android.overridePathCheck")) {
   console.log("• gradle.properties: 已存在 overridePathCheck");
 }
 
-// 补丁 2：BuildTask.kt 改用 cmd /c 启动 npm
+// 补丁 2：MainActivity.kt —— enableEdgeToEdge 后给内容加系统栏避让，防止与状态栏重叠
+const mainActivityKt = join(
+  gen,
+  "app",
+  "src",
+  "main",
+  "java",
+  "com",
+  "yitugo",
+  "app",
+  "MainActivity.kt",
+);
+const fixedMainActivity = `package com.yitugo.app
+
+import android.os.Bundle
+import android.view.View
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+
+class MainActivity : TauriActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    enableEdgeToEdge()
+    super.onCreate(savedInstanceState)
+    // edge-to-edge 模式下，给根内容视图加上系统栏（状态栏/导航栏）内边距，
+    // 避免 WebView 内容与状态栏重叠
+    val contentView = findViewById<View>(android.R.id.content)
+    ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, insets ->
+      val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+      WindowInsetsCompat.CONSUMED
+    }
+  }
+}
+`;
+if (existsSync(mainActivityKt)) {
+  const cur = readFileSync(mainActivityKt, "utf8");
+  if (!cur.includes("setOnApplyWindowInsetsListener")) {
+    writeFileSync(mainActivityKt, fixedMainActivity);
+    console.log("✓ MainActivity.kt: 添加系统栏避让（insets padding）");
+  } else {
+    console.log("• MainActivity.kt: 已包含状态栏避让补丁");
+  }
+} else {
+  console.error("✗ 未找到 MainActivity.kt");
+  process.exit(1);
+}
+
+// 补丁 3：BuildTask.kt 改用 cmd /c 启动 npm
 const buildTaskKt = join(
   gen,
   "buildSrc",
