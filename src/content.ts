@@ -1,7 +1,7 @@
 // 内容类型与共享工具（段位换算、坐标）
 import contentJson from "./content.json";
 
-export const APP_VERSION = "1.2.1";
+export const APP_VERSION = "1.3.0";
 
 export interface AiLevel {
   level: number;
@@ -60,7 +60,7 @@ export interface Chapter {
 
 export interface Puzzle {
   id: string;
-  tier: 1 | 2 | 3;
+  tier: 1 | 2 | 3 | 4;
   title: string;
   prompt: string;
   kind: "exact" | "seq" | "escape" | "eyes";
@@ -93,7 +93,7 @@ export const content = contentJson as unknown as {
   openings: OpeningEntry[];
 };
 
-export const TIER_NAMES: Record<number, string> = { 1: "吃子入门", 2: "战术进阶", 3: "死活手筋" };
+export const TIER_NAMES: Record<number, string> = { 1: "吃子入门", 2: "战术进阶", 3: "死活手筋", 4: "段位冲刺" };
 
 /** 解析带颜色前缀的着法："bdd" → { side: BLACK, coord: "dd" } */
 export function parsePrefixedMove(mv: string): { side: number; coord: string } {

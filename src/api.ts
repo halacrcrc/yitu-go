@@ -373,7 +373,7 @@ function localAiMove(g: LocalGame, level: number): number | null {
     return { pos, s };
   });
   scored.sort((a, b) => b.s - a.s);
-  const blunderP = [0.45, 0.3, 0.18, 0.1, 0.05, 0.02, 0, 0][Math.max(1, Math.min(8, level)) - 1];
+  const blunderP = [0.45, 0.3, 0.18, 0.1, 0.05, 0.02, 0, 0, 0, 0][Math.max(1, Math.min(10, level)) - 1];
   if (Math.random() < blunderP) {
     const k = Math.min(scored.length, 2 + Math.floor(Math.random() * 4));
     return scored[Math.floor(Math.random() * k)].pos;
@@ -402,7 +402,7 @@ function endLocalGame(g: LocalGame, reason: string, bs: number | null, ws: numbe
   // 更新等级分
   if (g.meta.rated && g.meta.mode === "ai") {
     const prof = lsGet<Profile>(LS_PROFILE) ?? defaultProfile();
-    const oppRating = content.aiLevels[Math.max(1, Math.min(8, g.meta.aiLevel)) - 1].rating;
+    const oppRating = content.aiLevels[Math.max(1, Math.min(10, g.meta.aiLevel)) - 1].rating;
     const playerIsBlack = g.meta.playerColor === "black";
     let playerWon: boolean;
     if (g.result.includes("中盘")) {
@@ -480,7 +480,7 @@ async function local(cmd: string, args: any): Promise<any> {
       const e = new TsEngine(Math.max(5, Math.min(19, req.size)));
       const komi = req.handicap >= 2 ? 0.5 : req.komi;
       const rated = req.rated && req.mode === "ai" && req.handicap < 2;
-      const aiL = content.aiLevels[Math.max(1, Math.min(8, req.ai_level)) - 1];
+      const aiL = content.aiLevels[Math.max(1, Math.min(10, req.ai_level)) - 1];
       const playerIsWhite = req.player_color === "white";
       let handicapPos: number[] = [];
       if (req.handicap >= 2) {

@@ -107,7 +107,7 @@ pub struct NewGameReq {
 pub fn new_game(app: AppHandle, state: State<GameMutex>, req: NewGameReq) -> Result<GameStateDto, String> {
     let prof = store::load_profile(&app);
     let size = req.size.clamp(5, 19);
-    let level = req.ai_level.clamp(1, 8);
+    let level = req.ai_level.clamp(1, 10);
     let is_ai_mode = req.mode == "ai";
     let player_is_white = req.player_color == "white";
     let rated = req.rated && is_ai_mode && req.handicap < 2;
@@ -227,7 +227,7 @@ pub fn resign(app: AppHandle, state: State<GameMutex>, side: String) -> Result<G
     if g.rated {
         if let (Some(ps), Some(rs)) = (player_side, g.rated_side) {
             if ps == rs {
-                let opp = AI_LEVEL_RATINGS[(g.ai_level.clamp(1, 8) - 1) as usize];
+                let opp = AI_LEVEL_RATINGS[(g.ai_level.clamp(1, 10) - 1) as usize];
                 store::apply_rating(&mut prof, opp, s != ps);
                 store::push_rating_history(&mut prof, Some(s != ps));
             }
@@ -366,7 +366,7 @@ pub fn confirm_result(app: AppHandle, state: State<GameMutex>) -> Result<GameSta
     let mut prof = store::load_profile(&app);
     if g.rated {
         if let Some(ps) = g.rated_side {
-            let opp = AI_LEVEL_RATINGS[(g.ai_level.clamp(1, 8) - 1) as usize];
+            let opp = AI_LEVEL_RATINGS[(g.ai_level.clamp(1, 10) - 1) as usize];
             let player_won = match ps {
                 Side::Black => b > w,
                 Side::White => w > b,

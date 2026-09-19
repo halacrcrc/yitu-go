@@ -815,9 +815,12 @@ h3 {
 .puzzle-main { flex: 1; padding: 22px; }
 .puzzle-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .puzzle-head h3 { font-size: 17px; }
-.puzzle-body { display: flex; gap: 26px; align-items: flex-start; }
-.puzzle-board .board-svg { width: min(calc(100vh - 64px), calc(100vw - 660px), 600px); }
-.puzzle-body { justify-content: center; }
+.puzzle-body { display: flex; gap: 26px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+.puzzle-board { flex-shrink: 0; max-width: 100%; }
+.puzzle-board .board-svg { width: min(max(260px, calc(100vw - 660px)), calc(100vh - 64px), 600px); }
+.library .puzzle-board .board-svg { width: min(max(260px, calc(100vw - 700px)), calc(100vh - 64px), 640px); }
+.puzzle-main { min-width: 0; overflow-x: hidden; }
+.puzzle-side { flex: 1 1 280px; min-width: min(280px, 100%); }
 .puzzle-side { flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .hint-card b { display: flex; align-items: center; gap: 6px; color: var(--gold); font-size: 13px; margin-bottom: 6px; }
 
@@ -1067,3 +1070,25 @@ input[type="range"] { height: 4px; }
   .modal { width: 96vw !important; }
   .content { padding: 10px; }
 }
+
+/* ===== 对弈空态 ===== */
+.play-empty {
+  display: flex;
+  justify-content: center;
+  padding-top: 5vh;
+}
+.play-empty-card {
+  max-width: 560px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 24px;
+}
+.empty-stones { position: relative; width: 104px; height: 84px; }
+.empty-stones .hs { position: absolute; width: 60px; height: 60px; }
+.empty-stones .hs-b { top: 0; left: 0; }
+.empty-stones .hs-w { bottom: 0; right: 0; width: 50px; height: 50px; }
+.play-empty-card .btn { margin-top: 6px; }
