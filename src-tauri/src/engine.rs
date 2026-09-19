@@ -577,7 +577,8 @@ pub struct AiConfig {
     pub level: u8, // 1..=8
 }
 
-/// AI 选择落点。level 1 最弱，8 最强。
+/// AI 选择落点。level 1 最弱，10 最强。
+/// 9/10 级（职业级模拟）启用：多核并行评估 + 时间预算 + 征子读取。
 pub fn ai_best_move(game: &Game, level: u8) -> Option<usize> {
     let side = game.turn;
     // 空盘开局：从星位/小目附近随机
@@ -591,29 +592,68 @@ pub fn ai_best_move(game: &Game, level: u8) -> Option<usize> {
         return None;
     }
 
-    // 启发式打分
+    let lv = level.clamp(1, 10) as usize;
+
+    // 启发式打分（含征子读取，越高等级读取越积极）
     let mut scored: Vec<(usize, f64)> = candidates
         .iter()
-        .map(|&pos| (pos, heuristic(game, pos, side)))
+        .map(|&pos| (pos, heuristic(game, pos, side, lv)))
         .collect();
     scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-    let lv = level.clamp(1, 8) as usize;
     let top_k = (3 + lv).min(scored.len());
-    let playouts_per = [2, 4, 7, 12, 18, 26, 36, 50][lv - 1];
+    // 各等级思考时间预算（毫秒），自适应硬件：核多/核快则同预算内算得更多
+    let budget_ms: u64 = [80, 120, 180, 260, 380, 550, 800, 1200, 2200, 4000][lv - 1];
 
-    // 蒙特卡洛评估前 top_k 个候选
-    let mut best_pos = scored[0].0;
-    let mut best_score = f64::MIN;
-    let mut rng = rand::thread_rng();
-    for &(pos, h) in scored.iter().take(top_k) {
-        let mut wins = 0.0;
-        for _ in 0..playouts_per {
-            if playout(game, pos, side, lv) {
-                wins += 1.0;
+    let top: Vec<(usize, f64)> = scored
+        .iter()
+        .take(top_k)
+        .map(|&(p, h)| (p, h))
+        .collect();
+
+    // root parallelism：每线程独立完整评估全部候选，最后合并胜率统计
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2)
+        .clamp(1, 6);
+    let mut handles = Vec::with_capacity(threads);
+    for _ in 0..threads {
+        let g = game.clone();
+        let top_c = top.clone();
+        handles.push(std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            let mut wins = vec![0u32; top_c.len()];
+            let mut runs = vec![0u32; top_c.len()];
+            while start.elapsed().as_millis() < budget_ms as u128 {
+                for (i, &(pos, _)) in top_c.iter().enumerate() {
+                    if playout(&g, pos, side, lv) {
+                        wins[i] += 1;
+                    }
+                    runs[i] += 1;
+                }
+            }
+            (wins, runs)
+        }));
+    }
+
+    let mut total_wins = vec![0f64; top_k];
+    let mut total_runs = vec![0u32; top_k];
+    for h in handles {
+        if let Ok((w, r)) = h.join() {
+            for i in 0..top_k {
+                total_wins[i] += w[i] as f64;
+                total_runs[i] += r[i];
             }
         }
-        let rate = wins / playouts_per as f64;
+    }
+
+    let mut best_pos = top[0].0;
+    let mut best_score = f64::MIN;
+    for (i, &(pos, h)) in top.iter().enumerate() {
+        if total_runs[i] == 0 {
+            continue;
+        }
+        let rate = total_wins[i] / total_runs[i] as f64;
         let total = rate * 2.0 + h * 0.06;
         if total > best_score {
             best_score = total;
@@ -622,7 +662,8 @@ pub fn ai_best_move(game: &Game, level: u8) -> Option<usize> {
     }
 
     // 低段位 AI 加入噪声/失误
-    let blunder_p = [0.45, 0.30, 0.18, 0.10, 0.05, 0.02, 0.0, 0.0][lv - 1];
+    let mut rng = rand::thread_rng();
+    let blunder_p = [0.45, 0.30, 0.18, 0.10, 0.05, 0.02, 0.0, 0.0, 0.0, 0.0][lv - 1];
     if rng.gen::<f64>() < blunder_p {
         // 从启发式前几名中随机挑一个较弱的
         let pick_k = (2 + rng.gen_range(1..=4).min(scored.len())).min(scored.len());
@@ -669,8 +710,81 @@ fn gen_candidates(game: &Game, side: Side) -> Vec<usize> {
     v
 }
 
-/// 启发式打分：吃子/救子/打吃/气权/位置
-fn heuristic(game: &Game, pos: usize, side: Side) -> f64 {
+/// 征子读取：判断 defender 组（含 seed）在 attacker 连续追杀下是否必死。
+/// 前提：轮到 defender 行棋。defender 每手选延出气数最多的方向逃跑；
+/// attacker 每手用一层前瞻选择最能压制逃跑的紧气点。
+/// 组气 >= 3 视为逃出；逃无可逃或延后仍一口气视为被征死。
+pub(crate) fn ladder_dead(b: &[u8], size: usize, seed: usize, attacker: u8) -> bool {
+    let defender = if attacker == BLACK { WHITE } else { BLACK };
+    let mut board = b.to_vec();
+    let max_steps = (size * size / 2).max(40);
+    for _ in 0..max_steps {
+        let (_, libs) = Game::group_on(&board, size, seed);
+        if libs.is_empty() {
+            return true;
+        }
+        if libs.len() >= 3 {
+            return false;
+        }
+        // defender：尝试每个气点，选延气后气数最大的方向
+        let mut best_lib: Option<usize> = None;
+        let mut best_libs_after = 0usize;
+        for &lp in libs.iter() {
+            let mut t = board.clone();
+            t[lp] = defender;
+            let (_, l2) = Game::group_on(&t, size, seed);
+            if l2.len() > best_libs_after {
+                best_libs_after = l2.len();
+                best_lib = Some(lp);
+            }
+        }
+        let lp = match best_lib {
+            Some(l) => l,
+            None => return true,
+        };
+        if best_libs_after >= 3 {
+            return false;
+        }
+        if best_libs_after <= 1 {
+            return true;
+        }
+        board[lp] = defender;
+        // attacker：对每个紧气点做一层前瞻，选使 defender 最好延气结果最差的一点
+        let (_, libs2) = Game::group_on(&board, size, seed);
+        if libs2.is_empty() {
+            return true;
+        }
+        if libs2.len() >= 3 {
+            return false;
+        }
+        let mut choice = *libs2.iter().next().unwrap();
+        let mut best_worst = usize::MAX;
+        for &lp2 in libs2.iter() {
+            let mut t = board.clone();
+            t[lp2] = attacker;
+            let (_, l2a) = Game::group_on(&t, size, seed);
+            // defender 应一手后最多能得几口气（取最好），attacker 选使其最小的点
+            let mut worst = usize::MAX;
+            for &dl in l2a.iter() {
+                let mut t2 = t.clone();
+                t2[dl] = defender;
+                let (_, l3) = Game::group_on(&t2, size, seed);
+                if l3.len() < worst {
+                    worst = l3.len();
+                }
+            }
+            if worst < best_worst {
+                best_worst = worst;
+                choice = lp2;
+            }
+        }
+        board[choice] = attacker;
+    }
+    false
+}
+
+/// 启发式打分：吃子/救子/打吃/征子读取/气权/位置
+fn heuristic(game: &Game, pos: usize, side: Side, lv: usize) -> f64 {
     let color = side.num();
     let opp = side.opp().num();
     let mut score = 0.0;
@@ -688,14 +802,24 @@ fn heuristic(game: &Game, pos: usize, side: Side) -> f64 {
         if game.board[nb] == color {
             let (group, libs) = game.group_at(nb);
             if libs.len() == 1 && libs.contains(&pos) && group.len() >= 2 {
-                score += group.len() as f64 * 18.0;
+                let (_, libs_after_self) = Game::group_on(&b, game.size, nb);
+                if libs_after_self.len() == 1 {
+                    // 延气后仍一口气：送吃
+                } else if libs_after_self.len() == 2 && lv >= 7 && ladder_dead(&b, game.size, nb, opp) {
+                    // 延气后仍被征死：白跑，降低优先级
+                    score -= 25.0;
+                } else {
+                    score += group.len() as f64 * 18.0;
+                }
             }
         }
         // 打吃对方大块
         if game.board[nb] == opp {
             let (group, libs_after) = Game::group_on(&b, game.size, nb);
             if libs_after.len() == 1 && group.len() >= 2 {
-                score += group.len() as f64 * 9.0;
+                // 征子读取：这步打吃能否一路征死对方
+                let kills = lv >= 6 && ladder_dead(&b, game.size, group[0], color);
+                score += group.len() as f64 * 9.0 + if kills { 45.0 } else { 0.0 };
             } else if libs_after.len() == 2 && group.len() >= 3 {
                 score += group.len() as f64 * 3.0;
             }

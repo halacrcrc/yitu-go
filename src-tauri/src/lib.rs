@@ -166,6 +166,28 @@ mod tests {
     }
 
     #[test]
+    fn test_ladder_dead_semantics() {
+        // 被网死的形：白 (4,4) 仅一口气 (4,3)，延出后四邻全黑 → 征死
+        let mut g = Game::new(9, 7.5, 0, ("b", false, ""), ("w", false, ""), false, None);
+        let p = |x: usize, y: usize| pos(9, x, y);
+        for &(x, y) in &[
+            (5, 4), (4, 5), (3, 4), // 白组三面
+            (3, 3), (5, 3), (4, 2), // 延气点 (4,3) 的另三面
+        ] {
+            g.board[p(x, y)] = BLACK;
+        }
+        g.board[p(4, 4)] = WHITE;
+        assert!(ladder_dead(&g.board, 9, p(4, 4), BLACK));
+
+        // 开阔形：白 (4,4) 两口气，任一延气方向都能获得三口气 → 征不死
+        let mut g2 = Game::new(9, 7.5, 0, ("b", false, ""), ("w", false, ""), false, None);
+        g2.board[p(5, 4)] = BLACK;
+        g2.board[p(4, 5)] = BLACK;
+        g2.board[p(4, 4)] = WHITE;
+        assert!(!ladder_dead(&g2.board, 9, p(4, 4), BLACK));
+    }
+
+    #[test]
     fn test_ai_returns_legal_move() {
         let mut g = Game::new(9, 7.5, 0, ("b", false, ""), ("w", true, ""), false, None);
         g.play(pos(9, 4, 4)).unwrap();

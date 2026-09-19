@@ -10,7 +10,7 @@ import { playError, playSuccess, playStone, playCapture } from "../sound";
 
 export function PuzzleView() {
   const { profile } = useStore();
-  const [tier, setTier] = useState<1 | 2 | 3>(1);
+  const [tier, setTier] = useState<1 | 2 | 3 | 4>(1);
   const list = useMemo(() => content.puzzles.filter((p) => p.tier === tier), [tier]);
   const [idx, setIdx] = useState(0);
   const puzzle: Puzzle = list[Math.min(idx, list.length - 1)];
@@ -29,7 +29,7 @@ export function PuzzleView() {
       <aside className="puzzle-list">
         <h2><Icon name="puzzle" size={20} /> 死活题</h2>
         <div className="tier-tabs">
-          {([1, 2, 3] as const).map((t) => (
+          {([1, 2, 3, 4] as const).map((t) => (
             <button key={t} className={tier === t ? "on" : ""} onClick={() => setTier(t)}>
               {TIER_NAMES[t]}
             </button>
