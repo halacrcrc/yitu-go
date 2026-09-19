@@ -1,6 +1,6 @@
 # 弈途围棋 (YiTu Go)
 
-面向围棋新手的桌面学习与对弈应用。参考《棋弈无限：围棋》的玩法思路（闯关教程 / AI 分级 / 棋谱管理），使用 **Rust + Tauri 2 + React** 从零实现。
+面向围棋新手的学习与对弈应用，使用 **Rust + Tauri 2 + React** 从零实现，支持 **Windows 桌面**与 **Android**。
 
 ![技术栈](https://img.shields.io/badge/Rust%20%2B%20Tauri%202%20%2B%20React-弈途围棋-4cc38a)
 
@@ -48,12 +48,25 @@
 
 ```bash
 npm install          # 安装前端依赖
-npm run verify       # 校验教程/死活题内容正确性（39 项检查）
+npm run verify       # 校验教程/死活题内容正确性（62 项检查）
 npm run dev          # 前端热更新开发（浏览器演示模式，AI 为简化版）
 npm run tauri dev    # 完整桌面应用开发模式
 cargo test           # Rust 引擎单元测试（提子/劫/禁入点/数目/悔棋/让子/AI）
 npm run tauri build  # 打包 Windows NSIS 安装程序
 ```
+
+### 构建 Android 版
+
+环境要求：JDK 17、Android SDK（platform-tools / platforms;android-34 / build-tools;34.0.0 / NDK r26c），Rust 目标 `aarch64-linux-android` 等：
+
+```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+npx tauri android init          # 生成安卓工程（gen/android，仅首次）
+node scripts/fix-android-gen.mjs  # 打两处 Windows 构建补丁（仅首次/重新 init 后）
+npx tauri android build --apk --target aarch64   # 生成 release APK
+```
+
+产物在 `src-tauri/gen/android/app/build/outputs/apk/universal/release/`（未签名）；用 `build-tools/<版本>/zipalign + apksigner` 签名后即可安装。注意：项目路径请避免非 ASCII 字符，或使用 `android.overridePathCheck=true` 覆盖。
 
 ### 结构
 

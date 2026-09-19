@@ -20,3 +20,8 @@ Thumbs.db
 # 编辑器
 .vscode/
 .idea/
+
+# Android 签名密钥与密码（不要提交到仓库）
+src-tauri/*.keystore
+src-tauri/android-signing-password.txt
+src-tauri/yitugo-aligned.apk
