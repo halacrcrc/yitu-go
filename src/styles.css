@@ -439,8 +439,11 @@ h3 {
 .play-board {
   flex-shrink: 0;
   filter: drop-shadow(0 14px 34px rgba(0, 0, 0, 0.45));
+  display: flex;
+  justify-content: center;
 }
-.board-svg { display: block; width: min(62vh, 620px); height: auto; border-radius: 10px; }
+.board-svg { display: block; height: auto; border-radius: 10px; }
+.play-board .board-svg { width: min(calc(100vh - 46px), calc(100vw - 388px), 820px); }
 .board-interactive .board-svg { user-select: none; }
 
 .stone-last { animation: stonePop 0.22s ease-out; transform-origin: center; transform-box: fill-box; }
@@ -729,7 +732,7 @@ h3 {
 .task-step { display: flex; gap: 26px; align-items: flex-start; }
 .task-info { flex: 1; min-width: 0; }
 .task-board { flex-shrink: 0; }
-.task-board .board-svg { width: min(42vh, 380px); }
+.task-board .board-svg { width: min(calc(52vh), 400px); }
 .task-msg {
   margin: 14px 0;
   padding: 12px 14px;
@@ -813,7 +816,8 @@ h3 {
 .puzzle-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
 .puzzle-head h3 { font-size: 17px; }
 .puzzle-body { display: flex; gap: 26px; align-items: flex-start; }
-.puzzle-board .board-svg { width: min(52vh, 480px); }
+.puzzle-board .board-svg { width: min(calc(100vh - 64px), calc(100vw - 660px), 600px); }
+.puzzle-body { justify-content: center; }
 .puzzle-side { flex: 1; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .hint-card b { display: flex; align-items: center; gap: 6px; color: var(--gold); font-size: 13px; margin-bottom: 6px; }
 
@@ -848,7 +852,7 @@ h3 {
 
 .replay { max-width: 1180px; margin: 0 auto; }
 .replay-body { display: flex; gap: 22px; align-items: flex-start; justify-content: center; }
-.replay-board .board-svg { width: min(60vh, 600px); }
+.replay-board .board-svg { width: min(calc(100vh - 64px), calc(100vw - 450px), 640px); }
 .replay-controls .row { justify-content: space-between; margin-bottom: 10px; }
 .replay-controls input[type="range"] { width: 100%; accent-color: var(--accent); }
 .replay-pos { text-align: center; margin-top: 6px; }
@@ -963,10 +967,58 @@ input[type="range"] { height: 4px; }
 .lg-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 8px; }
 
 /* ===== 演示步骤棋盘 ===== */
-.demo-board .board-svg { width: min(46vh, 420px); }
+.demo-board .board-svg { width: min(44vh, 400px); }
 
 /* 滚动条 */
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ===== 移动端适配 ===== */
+@media (max-width: 860px) {
+  .app { flex-direction: column !important; }
+  .sidebar {
+    flex-direction: row !important;
+    width: 100% !important;
+    padding: 6px 8px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    order: -1;
+  }
+  .sidebar .logo, .sidebar-foot, .collapse-btn { display: none !important; }
+  .nav-item {
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    padding: 7px 2px !important;
+    font-size: 10.5px;
+  }
+  .nav-item svg { width: 18px; height: 18px; }
+  .content { padding: 12px 12px 24px; overflow-y: auto; }
+
+  .play, .task-step, .puzzle-body, .replay-body,
+  .tutorial, .puzzle, .library { flex-direction: column !important; align-items: stretch !important; }
+  .play { align-items: center !important; }
+  .play-side, .puzzle-side { width: 100% !important; max-height: none; }
+  .board-svg { width: min(94vw, calc(100vh - 240px), 520px) !important; }
+  .task-board .board-svg, .demo-board .board-svg { width: min(88vw, calc(100vh - 300px), 400px) !important; }
+  .tutorial-list, .puzzle-list, .library-list { width: 100% !important; }
+  .puzzle-grid { max-height: 32vh; }
+  .home-grid { grid-template-columns: 1fr 1fr; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .hero { flex-direction: column; text-align: center; }
+  .hero-stones { display: none; }
+  .hero-actions { justify-content: center; }
+  .records-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .level-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .chart-card { grid-column: auto; }
+  .toast { max-width: 88vw; }
+}
+
+/* 深色导航点在小屏的绝对定位修正 */
+@media (max-width: 860px) {
+  .nav-dot { position: static; margin-left: 2px; }
+}

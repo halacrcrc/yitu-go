@@ -230,16 +230,16 @@ export function Board({
           })()
         )}
 
-        {/* 坐标 */}
+        {/* 坐标（置于棋盘边距带内，与网格线对齐） */}
         {showCoords && (
-          <g fill="#8d7a52" fontSize={Math.max(10, cell * 0.3)} textAnchor="middle" fontFamily="inherit">
+          <g fill="#8d7a52" fontSize={Math.max(9.5, cell * 0.28)} textAnchor="middle" fontFamily="inherit">
             {Array.from({ length: size }, (_, i) => (
-              <text key={`cl${i}`} x={margin + i * cell} y={margin - cell * 0.52} dominantBaseline="middle">
+              <text key={`cl${i}`} x={margin + i * cell} y={margin * 0.58} dominantBaseline="central">
                 {COLS[i]}
               </text>
             ))}
             {Array.from({ length: size }, (_, i) => (
-              <text key={`rn${i}`} x={margin - cell * 0.52} y={margin + i * cell} dominantBaseline="middle">
+              <text key={`rn${i}`} x={margin * 0.58} y={margin + i * cell} dominantBaseline="central">
                 {size - i}
               </text>
             ))}

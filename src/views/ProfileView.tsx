@@ -124,8 +124,6 @@ export function ProfileView() {
             弈途围棋 v{APP_VERSION} · Rust + Tauri 2 + React 构建{IS_TAURI ? "" : "（当前为浏览器演示模式）"}
             <br />
             数据保存在本机：{IS_TAURI ? "系统应用数据目录" : "浏览器 localStorage"}。
-            <br />
-            参考玩法设计：棋弈无限：围棋 —— 教程闯关 / AI 分级 / 定式库 / 棋谱管理。
           </p>
         </section>
       </div>
