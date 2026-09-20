@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Board, type BoardMark } from "../components/Board";
 import { Icon, Modal } from "../components/ui";
-import { api, IS_TAURI, type AiCapability, type GameStateDto, type NewGameReq } from "../api";
+import { api, IS_TAURI, type AiStatus, type GameStateDto, type NewGameReq } from "../api";
 import { content, coordName } from "../content";
 import { doPlayMove, useStore } from "../store";
 
@@ -15,7 +15,7 @@ export function PlayView() {
   const [hintPos, setHintPos] = useState<number | null>(null);
   const [confirmResign, setConfirmResign] = useState(false);
   const [scoringModalOpen, setScoringModalOpen] = useState(false);
-  const [aiCap, setAiCap] = useState<AiCapability | null>(null);
+  const [aiCap, setAiCap] = useState<AiStatus | null>(null);
 
   useEffect(() => {
     void api.aiStatus().then(setAiCap);
@@ -200,7 +200,7 @@ export function PlayView() {
           </div>
           <h3>开始一局棋</h3>
           <p className="muted">
-            与 8 级 AI 对战或双人同屏对弈，9/13/19 路棋盘任选。
+            与 10 级 AI 对战或双人同屏对弈，9/13/19 路棋盘任选。
             <br />
             对局进度自动保存，随时可以继续。
           </p>
@@ -264,8 +264,21 @@ export function PlayView() {
           {game.handicap >= 2 && <span className="badge">让{game.handicap}子</span>}
           {game.rated && <span className="badge badge-green">计入段位</span>}
           {aiCap && (
-            <span className="badge" title={aiCap.human_sl ? "已加载人类风格模型" : ""}>
-              {aiCap.name === "katago" ? `KataGo·${aiCap.backend}` : "内置 AI"}
+            <span
+              className={`badge${aiCap.degraded ? " badge-warn" : ""}`}
+              title={
+                aiCap.degraded
+                  ? "KataGo 本次查询失败，已自动降级到内置引擎"
+                  : aiCap.engine === "katago"
+                    ? "KataGo 神经网络引擎已启用" + (aiCap.human_sl ? "（含人类风格分级）" : "")
+                    : "内置引擎（在应用数据目录 katago/ 下部署 KataGo 可启用）"
+              }
+            >
+              {aiCap.engine === "katago"
+                ? `KataGo·${aiCap.backend}${aiCap.human_sl ? "+H" : ""}`
+                : aiCap.degraded
+                  ? "内置 AI（已降级）"
+                  : "内置 AI"}
             </span>
           )}
         </div>

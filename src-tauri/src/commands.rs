@@ -336,9 +336,9 @@ pub async fn hint(
 }
 
 #[tauri::command]
-pub async fn ai_status(app: AppHandle, ai: State<'_, AiState>) -> Result<crate::ai::Capability, String> {
+pub async fn ai_status(app: AppHandle, ai: State<'_, AiState>) -> Result<crate::ai::AiStatus, String> {
     let engine = get_engine(app.clone(), ai).await?;
-    Ok(engine.capability())
+    Ok(engine.status())
 }
 
 /// 懒加载引擎管理器：首次访问时探测 app_data_dir/katago/（缺失则纯内置引擎）

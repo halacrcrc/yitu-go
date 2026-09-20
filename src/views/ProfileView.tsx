@@ -3,16 +3,21 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/ui";
 import { RatingChart } from "../components/RatingChart";
 import { rankProgress, APP_VERSION } from "../content";
+import { api, IS_TAURI } from "../api";
 import { useStore } from "../store";
-import { IS_TAURI } from "../api";
 
 export function ProfileView() {
   const { profile, saveProfile, showToast } = useStore();
   const [name, setName] = useState(profile?.name ?? "");
+  const [ai, setAi] = useState<Awaited<ReturnType<typeof api.aiStatus>> | null>(null);
 
   useEffect(() => {
     if (profile) setName(profile.name);
   }, [profile?.name]);
+
+  useEffect(() => {
+    void api.aiStatus().then(setAi);
+  }, []);
 
   if (!profile) return <div className="profile" />;
 
@@ -78,6 +83,39 @@ export function ProfileView() {
             <input className="input" value={name} maxLength={12} onChange={(e) => setName(e.target.value)} placeholder="棋手昵称" />
             <button className="btn" onClick={saveName}>保存</button>
           </div>
+        </section>
+
+        <section className="card">
+          <h3><Icon name="bulb" size={18} /> AI 引擎</h3>
+          {ai && (
+            <>
+              <div className="ai-engine-row">
+                <span>当前引擎</span>
+                <b className={ai.engine === "katago" ? "ai-katago" : ""}>
+                  {ai.engine === "katago" ? `KataGo（${ai.backend}）` : "内置引擎"}
+                  {ai.degraded && <span className="badge badge-warn">已降级</span>}
+                </b>
+              </div>
+              {ai.human_sl && (
+                <div className="ai-engine-row">
+                  <span>人类风格分级</span>
+                  <b>已启用（humanSL）</b>
+                </div>
+              )}
+              {ai.engine !== "katago" && (
+                <p className="muted small" style={{ marginTop: 8 }}>
+                  想要更强的 AI？把 KataGo 引擎与模型放到以下目录后重启应用：<br />
+                  <code>{ai.engine_dir}</code><br />
+                  需要：katago.exe、model.bin.gz（正常模型）、可选 human.bin.gz（人类风格分级）。
+                </p>
+              )}
+              {ai.katago_installed && (
+                <p className="muted small" style={{ marginTop: 6 }}>
+                  引擎目录：{ai.engine_dir}
+                </p>
+              )}
+            </>
+          )}
         </section>
 
         <section className="card">
