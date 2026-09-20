@@ -618,7 +618,7 @@ h3 {
 
 .toast {
   position: fixed;
-  bottom: calc(26px + var(--safe-bottom));
+  bottom: calc(26px + min(var(--safe-bottom), 24px));
   left: 50%;
   transform: translateX(-50%);
   padding: 11px 22px;
@@ -1004,7 +1004,7 @@ input[type="range"] { height: 4px; }
     bottom: 0;
     flex-direction: column !important;
     width: 64px !important;
-    padding: calc(10px + var(--safe-top)) 6px 12px !important;
+    padding: calc(10px + min(var(--safe-top), 40px)) 6px 12px !important;
     border-right: 1px solid var(--border);
     border-bottom: none !important;
     align-items: center;
@@ -1041,7 +1041,7 @@ input[type="range"] { height: 4px; }
   .rank-chip em { margin-left: 0 !important; font-size: 10px; }
   .content {
     margin-left: 64px;
-    padding: calc(12px + var(--safe-top)) 10px calc(24px + var(--safe-bottom));
+    padding: calc(12px + min(var(--safe-top), 40px)) 10px calc(24px + min(var(--safe-bottom), 24px));
     overflow-y: auto;
   }
 
@@ -1118,7 +1118,7 @@ input[type="range"] { height: 4px; }
   .app { flex-direction: row !important; }
   .sidebar {
     width: 60px !important;
-    padding: calc(8px + var(--safe-top)) 6px calc(8px + var(--safe-bottom)) !important;
+    padding: calc(8px + min(var(--safe-top), 40px)) 6px calc(8px + min(var(--safe-bottom), 24px)) !important;
     border-right: 1px solid var(--border);
     border-bottom: none !important;
   }
@@ -1216,7 +1216,7 @@ input[type="range"] { height: 4px; }
 /* 数子浮动按钮（毛玻璃胶囊） */
 .scoring-fab {
   position: fixed;
-  bottom: calc(26px + var(--safe-bottom));
+  bottom: calc(26px + min(var(--safe-bottom), 24px));
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;

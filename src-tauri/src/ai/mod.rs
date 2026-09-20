@@ -165,8 +165,14 @@ use std::sync::{Arc, Mutex};
 impl EngineManager {
     /// 按文档 3.8：引擎目录 = app_data_dir/katago/
     /// 预期文件：katago.exe、model.bin.gz、katago.cfg，（可选）human.bin.gz
-    pub fn detect(data_dir: &std::path::Path) -> Self {
-        let dir = data_dir.join("katago");
+    pub fn detect(data_dir: &std::path::Path, custom_dir: Option<&str>) -> Self {
+        // 目录优先级：用户自定义（有效时）> 默认 app_data_dir/katago
+        let custom = custom_dir
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(std::path::PathBuf::from)
+            .filter(|p| p.is_dir());
+        let dir = custom.unwrap_or_else(|| data_dir.join("katago"));
         let katago = match katago::KataGoDesktop::from_dir(&dir) {
             Ok(k) => {
                 eprintln!("[ai] KataGo 引擎已启用: {}", k.capability().backend);

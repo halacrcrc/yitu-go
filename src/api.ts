@@ -105,6 +105,10 @@ export interface AiStatus {
   engine_dir: string;
 }
 
+export function isAndroid(): boolean {
+  return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+}
+
 export interface NewGameReq {
   size: number;
   komi: number;
@@ -157,6 +161,12 @@ export const api = {
           throw new Error(String(e));
         })
       : Promise.reject(new Error("浏览器演示模式不支持判题")),
+  setKatagoDir: (dir: string): Promise<AiStatus> =>
+    IS_TAURI
+      ? invoke<AiStatus>("set_katago_dir", { dir }).catch((e) => {
+          throw new Error(String(e));
+        })
+      : Promise.reject(new Error("浏览器演示模式不支持")),
   aiStatus: (): Promise<AiStatus | null> =>
     IS_TAURI ? invoke<AiStatus>("ai_status").catch(() => null) : Promise.resolve(null),
   enterScoring: (): Promise<GameStateDto> => invokeOrLocal("enter_scoring"),

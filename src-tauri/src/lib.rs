@@ -25,6 +25,7 @@ pub fn run() {
             commands::ai_status,
             commands::analyze_moves,
             commands::judge_position,
+            commands::set_katago_dir,
             commands::enter_scoring,
             commands::toggle_dead,
             commands::resume_scoring,

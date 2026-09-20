@@ -46,13 +46,16 @@ import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import kotlin.math.roundToInt
 
 class MainActivity : TauriActivity() {
-  private var safeTop = 0
-  private var safeBottom = 0
+  private var safeTopPx = 0f   // 物理像素
+  private var safeBottomPx = 0f
+  private var lastInjectedTop = -1
 
   // edge-to-edge 一体化：状态栏/导航栏透明，应用背景延伸到系统栏后面。
-  // 系统栏高度通过 CSS 变量注入 WebView，由前端自行决定避让方式。
+  // 系统栏高度除以屏幕密度后注入 CSS 变量（--safe-top/--safe-bottom，单位 CSS px），
+  // 前端按需避让；注入分多轮重试以覆盖 WebView 异步创建与页面加载的时机。
   @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
@@ -60,16 +63,21 @@ class MainActivity : TauriActivity() {
     val contentView = findViewById<View>(android.R.id.content)
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { _, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      safeTop = bars.top
-      safeBottom = bars.bottom
+      safeTopPx = bars.top.toFloat()
+      safeBottomPx = bars.bottom.toFloat()
       injectSafeArea()
       insets // 不消费：WebView 仍能拿到 insets（供其内部使用）
     }
-    // WebView 就绪时机不定（Rust 侧异步创建），分几轮注入保证页面加载后变量就位
+    // WebView 就绪时机不定（Rust 侧异步创建），分多轮注入保证页面加载后变量就位
     val handler = Handler(Looper.getMainLooper())
-    listOf(600L, 1500L, 3000L, 5000L).forEach { delay ->
+    listOf(500L, 1200L, 2500L, 4000L, 6000L, 9000L, 13000L).forEach { delay ->
       handler.postDelayed({ injectSafeArea() }, delay)
     }
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus) injectSafeArea()
   }
 
   override fun onResume() {
@@ -88,9 +96,15 @@ class MainActivity : TauriActivity() {
   }
 
   private fun injectSafeArea() {
+    if (safeTopPx <= 0f && safeBottomPx <= 0f) return
     val root = findViewById<View>(android.R.id.content) ?: return
     val web = findWebView(root) ?: return
-    val js = "(function(){var d=document.documentElement;d.style.setProperty('--safe-top','\${safeTop}px');d.style.setProperty('--safe-bottom','\${safeBottom}px');})();"
+    val density = resources.displayMetrics.density
+    val topDp = (safeTopPx / density).roundToInt()
+    val bottomDp = (safeBottomPx / density).roundToInt()
+    if (topDp == lastInjectedTop) return // 值未变化且已注入过
+    lastInjectedTop = topDp
+    val js = "(function(){var d=document.documentElement;d.style.setProperty('--safe-top','\${topDp}px');d.style.setProperty('--safe-bottom','\${bottomDp}px');})();"
     web.evaluateJavascript(js, null)
   }
 }

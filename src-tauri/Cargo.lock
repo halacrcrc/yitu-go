@@ -4607,7 +4607,7 @@ dependencies = [
 
 [[package]]
 name = "yitu-go"
-version = "1.5.1"
+version = "1.5.2"
 dependencies = [
  "rand",
  "serde",
