@@ -2,10 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
-use crate::engine::{ai_best_move, Game, Phase, Side};
+use crate::ai::{GoEngine, MoveIntent, MoveRequest, EngineManager};
+use crate::engine::{Game, Phase, Side};
 use crate::store::{self, Profile, RecordData, RecordMeta, AI_LEVEL_RATINGS};
 
 pub struct GameMutex(pub Mutex<Option<Game>>);
+
+/// AI 引擎管理器状态（懒加载：首次访问时探测 KataGo / 回退内置引擎）
+pub struct AiState(pub Mutex<Option<std::sync::Arc<EngineManager>>>);
 
 #[derive(Serialize, Clone)]
 pub struct PlayerDto {
@@ -265,7 +269,11 @@ pub fn resign(app: AppHandle, state: State<GameMutex>, side: String) -> Result<G
 }
 
 #[tauri::command]
-pub async fn ai_move(app: AppHandle, state: State<'_, GameMutex>) -> Result<GameStateDto, String> {
+pub async fn ai_move(
+    app: AppHandle,
+    state: State<'_, GameMutex>,
+    ai: State<'_, AiState>,
+) -> Result<GameStateDto, String> {
     let (game_clone, level) = {
         let guard = state.0.lock().map_err(|_| "状态错误")?;
         let g = guard.as_ref().ok_or("没有进行中的对局")?;
@@ -281,9 +289,13 @@ pub async fn ai_move(app: AppHandle, state: State<'_, GameMutex>) -> Result<Game
         }
         (g.clone(), g.ai_level)
     };
-    let mv = tauri::async_runtime::spawn_blocking(move || ai_best_move(&game_clone, level))
-        .await
-        .map_err(|e| e.to_string())?;
+    let engine = get_engine(app.clone(), ai).await?;
+    let mv = tauri::async_runtime::spawn_blocking(move || {
+        engine.best_move(&MoveRequest::from_game(&game_clone, level, MoveIntent::Play))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
 
     let mut guard = state.0.lock().map_err(|_| "状态错误")?;
     let g = guard.as_mut().ok_or("没有进行中的对局")?;
@@ -300,7 +312,11 @@ pub async fn ai_move(app: AppHandle, state: State<'_, GameMutex>) -> Result<Game
 }
 
 #[tauri::command]
-pub async fn hint(state: State<'_, GameMutex>) -> Result<Option<usize>, String> {
+pub async fn hint(
+    app: AppHandle,
+    state: State<'_, GameMutex>,
+    ai: State<'_, AiState>,
+) -> Result<Option<usize>, String> {
     let game_clone = {
         let guard = state.0.lock().map_err(|_| "状态错误")?;
         let g = guard.as_ref().ok_or("没有进行中的对局")?;
@@ -309,9 +325,35 @@ pub async fn hint(state: State<'_, GameMutex>) -> Result<Option<usize>, String> 
         }
         g.clone()
     };
-    tauri::async_runtime::spawn_blocking(move || ai_best_move(&game_clone, 8))
-        .await
-        .map_err(|e| e.to_string())
+    // Hint 语义（文档 3.7）：固定正常模型 + 中档 visits，与对局档位无关
+    let engine = get_engine(app.clone(), ai).await?;
+    tauri::async_runtime::spawn_blocking(move || {
+        engine.best_move(&MoveRequest::from_game(&game_clone, 0, MoveIntent::Hint))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn ai_status(app: AppHandle, ai: State<'_, AiState>) -> Result<crate::ai::Capability, String> {
+    let engine = get_engine(app.clone(), ai).await?;
+    Ok(engine.capability())
+}
+
+/// 懒加载引擎管理器：首次访问时探测 app_data_dir/katago/（缺失则纯内置引擎）
+async fn get_engine(app: AppHandle, ai: State<'_, AiState>) -> Result<std::sync::Arc<EngineManager>, String> {
+    if let Some(m) = ai.0.lock().map_err(|_| "状态错误")?.clone() {
+        return Ok(m);
+    }
+    let data_dir = store::data_dir(&app)?;
+    let mgr = tauri::async_runtime::spawn_blocking(move || {
+        std::sync::Arc::new(EngineManager::detect(&data_dir))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    *ai.0.lock().map_err(|_| "状态错误")? = Some(mgr.clone());
+    Ok(mgr)
 }
 
 #[tauri::command]

@@ -1,9 +1,10 @@
+pub mod ai;
 pub mod commands;
 pub mod engine;
 pub mod sgf;
 pub mod store;
 
-use commands::GameMutex;
+use commands::{AiState, GameMutex};
 use std::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -11,6 +12,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(GameMutex(Mutex::new(None)))
+        .manage(AiState(Mutex::new(None))) // 引擎懒加载：首次用时探测
         .invoke_handler(tauri::generate_handler![
             commands::new_game,
             commands::get_state,
@@ -20,6 +22,7 @@ pub fn run() {
             commands::resign,
             commands::ai_move,
             commands::hint,
+            commands::ai_status,
             commands::enter_scoring,
             commands::toggle_dead,
             commands::resume_scoring,
@@ -185,6 +188,39 @@ mod tests {
         g2.board[p(4, 5)] = BLACK;
         g2.board[p(4, 4)] = WHITE;
         assert!(!ladder_dead(&g2.board, 9, p(4, 4), BLACK));
+    }
+
+    // 需要本机部署 KataGo（%LOCALAPPDATA%/com.yitugo.app/katago/）；cargo test -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn test_katago_e2e() {
+        use crate::ai::{GoEngine, KataGoDesktop, MoveIntent, MoveRequest};
+        let dir = std::path::Path::new("C:/Users/22534/AppData/Local/com.yitugo.app/katago");
+        let k = KataGoDesktop::from_dir(dir).expect("KataGo 启动失败");
+        assert!(k.capability().human_sl || k.capability().name == "katago");
+
+        let mut g = Game::new(9, 7.5, 0, ("b", false, ""), ("w", false, ""), false, None);
+        g.play(pos(9, 4, 4)).unwrap(); // 黑天元
+        g.play(pos(9, 2, 2)).unwrap(); // 白小目
+
+        // 第 1 档（humanSL rank_20k 采样）与第 10 档（rank_9d）都应返回合法点
+        let mv1 = k
+            .best_move(&MoveRequest::from_game(&g, 1, MoveIntent::Play))
+            .expect("lv1 查询失败");
+        println!("lv1 move: {:?}", mv1.map(|p| (p % 9, p / 9)));
+        assert!(mv1.is_none() || g.try_move(mv1.unwrap(), Side::White).is_ok() || g.board[mv1.unwrap()] == 0);
+
+        let mv10 = k
+            .best_move(&MoveRequest::from_game(&g, 10, MoveIntent::Play))
+            .expect("lv10 查询失败");
+        println!("lv10 move: {:?}", mv10.map(|p| (p % 9, p / 9)));
+        assert!(mv10.is_some());
+
+        // 提示意图：固定正常模型中档 visits
+        let hint_mv = k
+            .best_move(&MoveRequest::from_game(&g, 0, MoveIntent::Hint))
+            .expect("hint 查询失败");
+        println!("hint move: {:?}", hint_mv.map(|p| (p % 9, p / 9)));
     }
 
     #[test]
