@@ -15,6 +15,9 @@ pub struct Settings {
     pub theme: String,
     #[serde(default)]
     pub sidebar_collapsed: bool,
+    /// 自定义 KataGo 引擎目录（空 = 默认 app_data_dir/katago）
+    #[serde(default)]
+    pub katago_dir: String,
 }
 
 fn default_theme() -> String {
@@ -31,6 +34,7 @@ impl Default for Settings {
             confirm_move: false,
             theme: "dark".into(),
             sidebar_collapsed: false,
+            katago_dir: String::new(),
         }
     }
 }

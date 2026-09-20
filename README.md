@@ -87,6 +87,7 @@ npx tauri android build --apk --target aarch64   # 生成 release APK
 | `katago.cfg` | 缺省时自动生成（Eigen 档：4 线程 + maxTime 3s 兜底） |
 
 - 双模型就绪时：1~9 档走 humanSL 段位采样（含 `humanSLChosenMoveProp` 混合），第 10 档为纯 KataGo 满配搜索；仅单模型时自动降级为全档位 profile 采样
+- **引擎目录可自定义**：设置页「AI 引擎」卡片 → 「选择引擎目录…」（Windows 系统目录选择器）；安卓版将在 NDK 集成后支持引擎文件选择（当前使用内置引擎）
 - humanSL 模型**只负责选点**；胜率/目差永远取自正常模型（避免 humanSL 胜率偏见，文档 5.1）
 - **AI 复盘**：复盘页「开始 AI 分析」逐手评估整局（默认每手 24 visits，逐批进行带进度显示）
 

@@ -1,6 +1,6 @@
 [package]
 name = "yitu-go"
-version = "1.5.1"
+version = "1.5.2"
 description = "弈途围棋 —— 面向新手的围棋学习与对弈应用"
 authors = ["you"]
 edition = "2021"

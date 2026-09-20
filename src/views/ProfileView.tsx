@@ -3,13 +3,25 @@ import { useEffect, useState } from "react";
 import { Icon } from "../components/ui";
 import { RatingChart } from "../components/RatingChart";
 import { rankProgress, APP_VERSION } from "../content";
-import { api, IS_TAURI } from "../api";
+import { api, IS_TAURI, isAndroid, type AiStatus } from "../api";
 import { useStore } from "../store";
 
 export function ProfileView() {
   const { profile, saveProfile, showToast } = useStore();
   const [name, setName] = useState(profile?.name ?? "");
-  const [ai, setAi] = useState<Awaited<ReturnType<typeof api.aiStatus>> | null>(null);
+  const [ai, setAi] = useState<AiStatus | null>(null);
+  const [katagoDirInput, setKatagoDirInput] = useState("");
+
+  const refreshAi = () => {
+    void api.aiStatus().then((s) => {
+      setAi(s);
+      if (s) setKatagoDirInput(s.engine_dir);
+    });
+  };
+
+  useEffect(() => {
+    refreshAi();
+  }, []);
 
   useEffect(() => {
     if (profile) setName(profile.name);
@@ -102,17 +114,60 @@ export function ProfileView() {
                   <b>已启用（humanSL）</b>
                 </div>
               )}
-              {ai.engine !== "katago" && (
-                <p className="muted small" style={{ marginTop: 8 }}>
-                  想要更强的 AI？把 KataGo 引擎与模型放到以下目录后重启应用：<br />
-                  <code>{ai.engine_dir}</code><br />
-                  需要：katago.exe、model.bin.gz（正常模型）、可选 human.bin.gz（人类风格分级）。
-                </p>
-              )}
-              {ai.katago_installed && (
-                <p className="muted small" style={{ marginTop: 6 }}>
-                  引擎目录：{ai.engine_dir}
-                </p>
+              <div className="ai-engine-row">
+                <span>引擎目录</span>
+                <b className="ai-dir">{ai.engine_dir}</b>
+              </div>
+
+              {isAndroid() ? (
+                ai.engine !== "katago" && (
+                  <p className="muted small" style={{ marginTop: 8 }}>
+                    安卓端 KataGo（libkatago.so）正在路线图中，当前使用内置引擎。
+                    未来版本将支持在此选择引擎文件。
+                  </p>
+                )
+              ) : (
+                <>
+                  <p className="muted small" style={{ marginTop: 8 }}>
+                    引擎目录需要包含：katago.exe、model.bin.gz（正常模型）、
+                    可选 human.bin.gz（人类风格分级）、katago.cfg（缺省自动生成）。
+                    修改后立即生效，无需重启。
+                  </p>
+                  {!IS_TAURI ? null : (
+                    <div className="row gap wrap" style={{ marginTop: 8 }}>
+                      <button
+                        className="btn small"
+                        onClick={async () => {
+                          try {
+                            const { open } = await import("@tauri-apps/plugin-dialog");
+                            const dir = await open({ directory: true, title: "选择 KataGo 引擎目录" });
+                            if (typeof dir === "string") {
+                              const s = await api.setKatagoDir(dir);
+                              setAi(s);
+                            }
+                          } catch (e: any) {
+                            showToast?.(String(e?.message ?? e), "error");
+                          }
+                        }}
+                      >
+                        选择引擎目录…
+                      </button>
+                      <button
+                        className="btn ghost small"
+                        onClick={async () => {
+                          try {
+                            const s = await api.setKatagoDir("");
+                            setAi(s);
+                          } catch (e: any) {
+                            showToast?.(String(e?.message ?? e), "error");
+                          }
+                        }}
+                      >
+                        恢复默认
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

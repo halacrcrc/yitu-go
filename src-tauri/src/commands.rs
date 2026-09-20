@@ -432,14 +432,41 @@ async fn get_engine(app: AppHandle, ai: State<'_, AiState>) -> Result<std::sync:
     if let Some(m) = ai.0.lock().map_err(|_| "状态错误")?.clone() {
         return Ok(m);
     }
+    let prof = store::load_profile(&app);
+    let custom = prof.settings.katago_dir.trim().to_string();
+    let custom = if custom.is_empty() { None } else { Some(custom) };
     let data_dir = store::data_dir(&app)?;
     let mgr = tauri::async_runtime::spawn_blocking(move || {
-        std::sync::Arc::new(EngineManager::detect(&data_dir))
+        std::sync::Arc::new(EngineManager::detect(&data_dir, custom.as_deref()))
     })
     .await
     .map_err(|e| e.to_string())?;
     *ai.0.lock().map_err(|_| "状态错误")? = Some(mgr.clone());
     Ok(mgr)
+}
+
+/// 设置自定义 KataGo 引擎目录（空串恢复默认），并重置引擎管理器使其重新探测
+#[tauri::command]
+pub fn set_katago_dir(
+    app: AppHandle,
+    ai: State<'_, AiState>,
+    dir: String,
+) -> Result<crate::ai::AiStatus, String> {
+    let mut prof = store::load_profile(&app);
+    prof.settings.katago_dir = dir.trim().to_string();
+    store::save_profile(&app, &prof).ok();
+    // 重置引擎管理器：下次请求按新目录重新探测
+    *ai.0.lock().map_err(|_| "状态错误")? = None;
+    let mgr = std::sync::Arc::new(EngineManager::detect(
+        &store::data_dir(&app)?,
+        if prof.settings.katago_dir.is_empty() {
+            None
+        } else {
+            Some(prof.settings.katago_dir.as_str())
+        },
+    ));
+    *ai.0.lock().map_err(|_| "状态错误")? = Some(mgr.clone());
+    Ok(mgr.status())
 }
 
 #[tauri::command]
