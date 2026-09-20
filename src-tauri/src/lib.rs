@@ -23,6 +23,7 @@ pub fn run() {
             commands::ai_move,
             commands::hint,
             commands::ai_status,
+            commands::analyze_moves,
             commands::enter_scoring,
             commands::toggle_dead,
             commands::resume_scoring,

@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::{AppHandle, State};
 
-use crate::ai::{GoEngine, MoveIntent, MoveRequest, EngineManager};
+use crate::ai::{GoEngine, AnalyzeRequest, MoveIntent, MoveRequest, MoveAnalysis, EngineManager};
 use crate::engine::{Game, Phase, Side};
 use crate::store::{self, Profile, RecordData, RecordMeta, AI_LEVEL_RATINGS};
 
@@ -18,7 +18,7 @@ pub struct PlayerDto {
     pub rank: String,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MoveDto {
     pub side: u8,
     pub pos: Option<usize>,
@@ -339,6 +339,50 @@ pub async fn hint(
 pub async fn ai_status(app: AppHandle, ai: State<'_, AiState>) -> Result<crate::ai::AiStatus, String> {
     let engine = get_engine(app.clone(), ai).await?;
     Ok(engine.status())
+}
+
+/// 复盘分析：对棋谱记录 [from, to) 手区间逐手评估（需要 KataGo）
+#[tauri::command]
+pub async fn analyze_moves(
+    app: AppHandle,
+    ai: State<'_, AiState>,
+    size: usize,
+    komi: f64,
+    handicap: u8,
+    handicap_pos: Vec<usize>,
+    moves: Vec<MoveDto>,
+    from: usize,
+    to: usize,
+    visits: u32,
+) -> Result<Vec<MoveAnalysis>, String> {
+    let engine = get_engine(app, ai).await?;
+
+    // 从 DTO 重建只读对局状态（不进入 GameMutex，不影响正在进行的对局）
+    let mut g = Game::new(size, komi, 0, ("", false, ""), ("w", false, ""), false, None);
+    if handicap >= 2 {
+        g.handicap_pos = handicap_pos.clone();
+        for &p in &g.handicap_pos {
+            g.board[p] = crate::engine::BLACK;
+        }
+        g.turn = Side::White;
+        g.handicap = handicap;
+    }
+    for m in &moves {
+        let side = if m.side == 1 { Side::Black } else { Side::White };
+        match m.pos {
+            Some(p) => {
+                g.board[p] = side.num();
+                g.history.push(crate::engine::MoveRecord { side, pos: Some(p), captured: vec![] });
+            }
+            None => g.history.push(crate::engine::MoveRecord { side, pos: None, captured: vec![] }),
+        }
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        engine.analyze(&AnalyzeRequest { game: g, from, to, visits })
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// 懒加载引擎管理器：首次访问时探测 app_data_dir/katago/（缺失则纯内置引擎）

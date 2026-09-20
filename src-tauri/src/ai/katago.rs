@@ -300,6 +300,134 @@ impl GoEngine for KataGoDesktop {
             human_sl: self.human_model.is_some(),
         }
     }
+
+    /// 整局逐手分析：一次查询带 analyzeTurns，收集每手落子后的胜率/目差。
+    /// 胜率统一转黑方视角（KataGo 配置为 SIDETOMOVE = 轮走方视角）。
+    fn analyze(&self, req: &crate::ai::AnalyzeRequest) -> Result<Vec<crate::ai::MoveAnalysis>, String> {
+        if !self.is_alive() {
+            return Err("KataGo 进程已退出".into());
+        }
+        let g = &req.game;
+        let from = req.from.min(g.history.len());
+        let to = req.to.min(g.history.len());
+        if from >= to {
+            return Ok(Vec::new());
+        }
+        let turns: Vec<u32> = (from..to).map(|i| i as u32).collect();
+
+        let coord = |p: usize| our_pos_to_gtp(p, g.size);
+        let mut moves = Vec::new();
+        for m in &g.history {
+            let color = if m.side == crate::engine::Side::Black { "B" } else { "W" };
+            match m.pos {
+                Some(p) => moves.push(serde_json::json!([color, coord(p)])),
+                None => moves.push(serde_json::json!([color, "pass"])),
+            }
+        }
+        let initial: Vec<_> = g
+            .handicap_pos
+            .iter()
+            .map(|&p| serde_json::json!(["B", coord(p)]))
+            .collect();
+
+        let mut q = serde_json::json!({
+            "rules": "chinese",
+            "komi": g.komi,
+            "boardXSize": g.size,
+            "boardYSize": g.size,
+            "moves": moves,
+            "analyzeTurns": turns,
+            "maxVisits": req.visits,
+        });
+        if !initial.is_empty() {
+            q["initialStones"] = serde_json::json!(initial);
+        }
+
+        // 注册收集通道（同 id 多条响应：每个 turn 一条 + done）
+        let id = {
+            let mut s = self.seq.lock().unwrap();
+            *s += 1;
+            format!("yitu-an-{}", s)
+        };
+        q["id"] = serde_json::Value::String(id.clone());
+        let (tx, rx) = sync_channel::<serde_json::Value>(8);
+        self.dispatch.lock().unwrap().insert(id.clone(), tx);
+
+        {
+            let mut line = serde_json::to_string(&q).map_err(|e| e.to_string())?;
+            line.push('\n');
+            let mut sin_guard = self.stdin.lock().unwrap();
+            let sin = sin_guard.as_mut().ok_or_else(|| "引擎未启动".to_string())?;
+            sin.write_all(line.as_bytes()).map_err(|e| format!("写入失败: {e}"))?;
+            sin.flush().map_err(|e| format!("flush 失败: {e}"))?;
+        }
+
+        let mut out: Vec<Option<(f64, f64)>> = vec![None; to - from];
+        let deadline = std::time::Instant::now() + Duration::from_secs(30 + (to - from) as u64 * 6);
+        let mut received = 0;
+        while received < turns.len() {
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            if left.is_zero() {
+                break; // 超时：返回已收集的部分
+            }
+            match rx.recv_timeout(left) {
+                Ok(v) => {
+                    if v.get("done").and_then(|x| x.as_bool()).unwrap_or(false) {
+                        break;
+                    }
+                    let turn = v.get("turnNumber").and_then(|x| x.as_u64()).unwrap_or(0) as usize;
+                    if turn < from || turn >= to {
+                        continue;
+                    }
+                    if let Some(ri) = v.get("rootInfo") {
+                        let wr_side = ri.get("winrate").and_then(|x| x.as_f64()).unwrap_or(0.5);
+                        let sl_side = ri.get("scoreLead").and_then(|x| x.as_f64()).unwrap_or(0.0);
+                        // SIDETOMOVE：turn n 的评估属于「将下第 n+1 手的一方」= history[n].side 的对方
+                        let mover_is_black = g.history.get(turn).map(|m| m.side == crate::engine::Side::Black).unwrap_or(true);
+                        let (wr_b, sl_b) = if mover_is_black { (wr_side, sl_side) } else { (1.0 - wr_side, -sl_side) };
+                        out[turn - from] = Some((wr_b, sl_b));
+                    }
+                    received += 1;
+                }
+                Err(e) => {
+                    eprintln!("[katago] 分析等待中断: {e}");
+                    break;
+                }
+            }
+        }
+        self.dispatch.lock().unwrap().remove(&id);
+
+        // 组装：缺失的 turn 用前后插值填充（超时兜底）
+        let mut result = Vec::with_capacity(to - from);
+        for i in 0..(to - from) {
+            let n = from + i + 1;
+            let m = &g.history[n - 1];
+            let (wr_b, sl_b) = match out[i] {
+                Some(x) => x,
+                None => {
+                    // 前向填充：找最近的已知值，否则 0.5
+                    let mut known = None;
+                    for j in (0..out.len()).rev() {
+                        if j < i {
+                            if let Some(x) = out[j] { known = Some(x); break; }
+                        }
+                    }
+                    match known {
+                        Some(x) => x,
+                        None => (0.5, 0.0),
+                    }
+                }
+            };
+            result.push(crate::ai::MoveAnalysis {
+                move_number: n,
+                side: if m.side == crate::engine::Side::Black { 1 } else { 2 },
+                pos: m.pos,
+                winrate_black: wr_b,
+                score_lead_black: sl_b,
+            });
+        }
+        Ok(result)
+    }
 }
 
 // ---------- 分级映射（文档 5.2） ----------
@@ -516,5 +644,25 @@ mod tests {
             .best_move(&MoveRequest::from_game(&g, 0, MoveIntent::Hint))
             .expect("hint 查询失败");
         println!("hint move: {:?}", hint_mv.map(|p| (p % 9, p / 9)));
+
+        // analyze：9 路模拟 10 手对局，逐手评估
+        for i in 0..10 {
+            if i % 2 == 0 {
+                let _ = g.play((i * 3 + 2) % 9 + ((i * 5 + 3) % 9) * 9);
+            } else {
+                let _ = g.play((i * 7 + 4) % 9 + ((i * 2 + 5) % 9) * 9);
+            }
+        }
+        let ans = k
+            .analyze(&crate::ai::AnalyzeRequest { game: g.clone(), from: 0, to: g.history.len(), visits: 8 })
+            .expect("analyze 失败");
+        assert_eq!(ans.len(), g.history.len());
+        for a in &ans {
+            assert!(a.winrate_black >= 0.0 && a.winrate_black <= 1.0, "winrate 越界: {a:?}");
+        }
+        println!("analyze ok: {} 手评估，黑胜率序列前3 = {:?}",
+            ans.len(),
+            ans.iter().take(3).map(|a| (a.move_number, (a.winrate_black * 100.0) as u8)).collect::<Vec<_>>()
+        );
     }
 }
