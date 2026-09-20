@@ -58,7 +58,34 @@ pub struct Capability {
 pub trait GoEngine: Send + Sync {
     /// 返回落子点（0..size*size，y 向上），None 表示 pass
     fn best_move(&self, req: &MoveRequest) -> Result<Option<usize>, String>;
+    /// 复盘分析：返回 [from, to) 每一手的评估（KataGo 支持，内置引擎不支持）
+    fn analyze(&self, req: &AnalyzeRequest) -> Result<Vec<MoveAnalysis>, String> {
+        let _ = req;
+        Err("当前引擎不支持分析".into())
+    }
     fn capability(&self) -> Capability;
+}
+
+/// 复盘分析请求：对对局 [from, to) 手区间做逐手评估
+pub struct AnalyzeRequest {
+    pub game: Game,
+    pub from: usize,
+    pub to: usize,
+    /// 每手搜索访问数（Eigen 档建议 8~24，GPU 档可 100+）
+    pub visits: u32,
+}
+
+/// 单手评估（统一为黑方视角）
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MoveAnalysis {
+    /// 落子序号（1-based）
+    pub move_number: usize,
+    pub side: u8,
+    pub pos: Option<usize>,
+    /// 落子后黑方胜率 0..1
+    pub winrate_black: f64,
+    /// 落子后黑方目差
+    pub score_lead_black: f64,
 }
 
 /// 自研启发式兜底引擎（无外部依赖，永远可用；文档 5.3 降级链第 2 级）

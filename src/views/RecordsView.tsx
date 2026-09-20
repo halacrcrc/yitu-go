@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Board } from "../components/Board";
 import { Icon, Modal } from "../components/ui";
-import { api, IS_TAURI, buildSgfLocal, parseSgfLocal, type RecordData, type RecordMeta } from "../api";
+import { api, IS_TAURI, buildSgfLocal, parseSgfLocal, type RecordData, type RecordMeta, type MoveAnalysis, type AiStatus } from "../api";
+import { WinrateChart } from "../components/WinrateChart";
 import { TsEngine, BLACK } from "../engine";
 import { coordName } from "../content";
 import { useStore } from "../store";
@@ -191,9 +192,16 @@ export function RecordsView() {
 }
 
 function RecordReplay({ rec, onBack, onExport, onDelete }: { rec: RecordData; onBack: () => void; onExport: () => void; onDelete: () => void }) {
-  const { profile } = useStore();
+  const { profile, showToast } = useStore();
   const [cursor, setCursor] = useState(rec.history.length);
   const [playing, setPlaying] = useState(false);
+  const [analysis, setAnalysis] = useState<MoveAnalysis[] | null>(null);
+  const [analyzing, setAnalyzing] = useState<{ done: number; total: number } | null>(null);
+  const [aiCap, setAiCap] = useState<AiStatus | null>(null);
+
+  useEffect(() => {
+    void api.aiStatus().then(setAiCap);
+  }, []);
 
   const state = useMemo(() => {
     const e = new TsEngine(rec.meta.size);
@@ -235,6 +243,41 @@ function RecordReplay({ rec, onBack, onExport, onDelete }: { rec: RecordData; on
     setPlaying(false);
     setCursor((c) => Math.max(0, Math.min(total, c + d)));
   };
+
+  // AI 逐批分析整局（需要 KataGo）
+  const runAnalysis = async () => {
+    if (analyzing) return;
+    setAnalysis(null);
+    const batch = 12;
+    const visits = 24;
+    const collected: MoveAnalysis[] = [];
+    setAnalyzing({ done: 0, total });
+    try {
+      for (let from = 0; from < total; from += batch) {
+        const to = Math.min(total, from + batch);
+        const part = await api.analyzeMoves({
+          size: rec.meta.size,
+          komi: rec.meta.komi,
+          handicap: rec.handicap,
+          handicap_pos: rec.handicap_pos,
+          moves: rec.history.map((m) => ({ side: m.side, pos: m.pos })),
+          from,
+          to,
+          visits,
+        });
+        collected.push(...part);
+        setAnalysis([...collected]);
+        setAnalyzing({ done: to, total });
+      }
+      showToast("AI 分析完成", "success");
+    } catch (e: any) {
+      showToast(String(e?.message ?? e), "error");
+      if (collected.length === 0) setAnalyzing(null);
+      else setAnalyzing(null);
+    }
+  };
+
+  const engineName = aiCap?.engine ?? null;
 
   const currentMove = cursor > 0 && cursor <= total ? rec.history[cursor - 1] : null;
   const lastPos = currentMove?.pos ?? null;
@@ -299,6 +342,43 @@ function RecordReplay({ rec, onBack, onExport, onDelete }: { rec: RecordData; on
               第 {cursor} / {total} 手
               {lastPos !== null && <> · {currentMove?.side === BLACK ? "黑" : "白"} {coordName(rec.meta.size, lastPos)}</>}
             </div>
+          </div>
+
+          <div className="card">
+            <div className="row" style={{ justifyContent: "space-between", marginBottom: 8 }}>
+              <b style={{ fontSize: 13.5 }}>AI 分析</b>
+              {aiCap?.engine === "katago" ? (
+                <span className="badge badge-green">KataGo</span>
+              ) : (
+                <span className="badge">需 KataGo</span>
+              )}
+            </div>
+            {analyzing ? (
+              <>
+                <div className="rank-bar" style={{ marginBottom: 6 }}>
+                  <div style={{ width: `${(analyzing.done / Math.max(1, analyzing.total)) * 100}%` }} />
+                </div>
+                <div className="muted small">分析中… {analyzing.done}/{analyzing.total} 手</div>
+              </>
+            ) : analysis ? (
+              <WinrateChart
+                analysis={analysis.map((a) => ({ n: a.move_number, wr: a.winrate_black, side: a.side }))}
+                cursor={cursor}
+                onSeek={(n) => { setPlaying(false); setCursor(n); }}
+                height={130}
+              />
+            ) : (
+              <>
+                <p className="muted small" style={{ marginBottom: 8 }}>
+                  {aiCap?.engine === "katago"
+                    ? "用 KataGo 逐手评估整局，生成黑方胜率曲线并标出双方失误。"
+                    : "需要 KataGo 引擎（设置页查看部署方式）。内置引擎不支持复盘分析。"}
+                </p>
+                <button className="btn primary small" style={{ width: "100%", justifyContent: "center" }} disabled={total === 0} onClick={() => void runAnalysis()}>
+                  <Icon name="bulb" size={14} /> 开始 AI 分析
+                </button>
+              </>
+            )}
           </div>
 
           <div className="card movelist">

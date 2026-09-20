@@ -86,6 +86,14 @@ export interface RecordData {
   black_score: number | null;
   white_score: number | null;
 }
+export interface MoveAnalysis {
+  move_number: number;
+  side: number;
+  pos: number | null;
+  winrate_black: number;
+  score_lead_black: number;
+}
+
 export interface AiStatus {
   engine: string;
   backend: string;
@@ -117,6 +125,21 @@ export const api = {
   resign: (side: "black" | "white"): Promise<GameStateDto> => invokeOrLocal("resign", { side }),
   aiMove: (): Promise<GameStateDto> => invokeOrLocal("ai_move"),
   hint: (): Promise<number | null> => invokeOrLocal("hint"),
+  analyzeMoves: (args: {
+    size: number;
+    komi: number;
+    handicap: number;
+    handicap_pos: number[];
+    moves: MoveDto[];
+    from: number;
+    to: number;
+    visits: number;
+  }): Promise<MoveAnalysis[]> =>
+    IS_TAURI
+      ? invoke<MoveAnalysis[]>("analyze_moves", args).catch((e) => {
+          throw new Error(String(e));
+        })
+      : Promise.reject(new Error("浏览器演示模式不支持 AI 分析")),
   aiStatus: (): Promise<AiStatus | null> =>
     IS_TAURI ? invoke<AiStatus>("ai_status").catch(() => null) : Promise.resolve(null),
   enterScoring: (): Promise<GameStateDto> => invokeOrLocal("enter_scoring"),
