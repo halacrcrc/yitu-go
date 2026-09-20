@@ -1088,6 +1088,8 @@ input[type="range"] { height: 4px; }
 .modal-mask { z-index: 100; }
 .toast { z-index: 200; }
 
+/* ===== 移动端竖屏：纵向堆叠布局（此前误落到媒体查询外导致桌面堆叠，已修复） ===== */
+@media (max-width: 860px) and (min-height: 481px) {
   .play, .task-step, .puzzle-body, .replay-body,
   .tutorial, .puzzle, .library { flex-direction: column !important; align-items: stretch !important; }
   .play { align-items: center !important; }
