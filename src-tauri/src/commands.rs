@@ -385,6 +385,48 @@ pub async fn analyze_moves(
     .map_err(|e| e.to_string())?
 }
 
+/// 死活判题（文档第六章）：题面子进 initialStones（双色），moves 需已包含玩家这手；
+/// target_points 为目标块，expect_owner: +1 目标块终属黑 / -1 终属白。
+/// 三值判定：达成（≥0.8）/ 未达成（≤0.2）/ 不明确（劫或依赖后续，0.2~0.8）。
+#[derive(Deserialize)]
+pub struct InitialStoneDto {
+    pub side: u8,
+    pub pos: usize,
+}
+
+#[tauri::command]
+pub async fn judge_position(
+    app: AppHandle,
+    ai: State<'_, AiState>,
+    size: usize,
+    komi: f64,
+    initial_black: Vec<usize>,
+    initial_white: Vec<usize>,
+    moves: Vec<MoveDto>,
+    target_points: Vec<usize>,
+    expect_owner: i8,
+    visits: u32,
+) -> Result<crate::ai::Verdict, String> {
+    let engine = get_engine(app, ai).await?;
+    tauri::async_runtime::spawn_blocking(move || {
+        engine.judge_position(&crate::ai::JudgeRequest {
+            size,
+            komi,
+            initial_black,
+            initial_white,
+            moves: moves
+                .into_iter()
+                .map(|m| (m.side, m.pos.expect("判题手顺不允许 pass")))
+                .collect(),
+            target_points,
+            expect_owner,
+            visits: visits.clamp(32, 512),
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// 懒加载引擎管理器：首次访问时探测 app_data_dir/katago/（缺失则纯内置引擎）
 async fn get_engine(app: AppHandle, ai: State<'_, AiState>) -> Result<std::sync::Arc<EngineManager>, String> {
     if let Some(m) = ai.0.lock().map_err(|_| "状态错误")?.clone() {

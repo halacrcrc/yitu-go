@@ -428,6 +428,74 @@ impl GoEngine for KataGoDesktop {
         }
         Ok(result)
     }
+
+    /// 死活判题：查询当前局面 ownership，目标块平均归属与期望比较。
+    /// 判题纪律（文档 6.2）：正常模型 + 足量 visits；禁用 humanSL 参数。
+    fn judge_position(&self, req: &crate::ai::JudgeRequest) -> Result<crate::ai::Verdict, String> {
+        if !self.is_alive() {
+            return Err("KataGo 进程已退出".into());
+        }
+        let coord = |p: usize| our_pos_to_gtp(p, req.size);
+        let mut moves = Vec::new();
+        for (side_num, p) in &req.moves {
+            let color = if *side_num == 1 { "B" } else { "W" };
+            moves.push(serde_json::json!([color, coord(*p)]));
+        }
+        let initial: Vec<_> = req
+            .initial_black
+            .iter()
+            .map(|&p| serde_json::json!(["B", coord(p)]))
+            .chain(
+                req.initial_white
+                    .iter()
+                    .map(|&p| serde_json::json!(["W", coord(p)])),
+            )
+            .collect();
+
+        let mut q = serde_json::json!({
+            "rules": "chinese",
+            "komi": req.komi,
+            "boardXSize": req.size,
+            "boardYSize": req.size,
+            "moves": moves,
+            "maxVisits": req.visits,
+            "includeOwnership": true,
+        });
+        if !initial.is_empty() {
+            q["initialStones"] = serde_json::json!(initial);
+        }
+
+        let v = self.query(q, Duration::from_secs(60))?;
+        if v.get("error").is_some() {
+            return Err(format!(
+                "KataGo 错误: {}",
+                v.get("error").and_then(|x| x.as_str()).unwrap_or("unknown")
+            ));
+        }
+        let ownership = v
+            .get("ownership")
+            .and_then(|x| x.as_array())
+            .ok_or_else(|| "响应缺少 ownership".to_string())?;
+
+        // ownership：正 = 黑领地，负 = 白领地；索引 = ky*size+kx（ky 自顶向下）
+        let size = req.size;
+        let owned: Vec<f64> = ownership.iter().map(|x| x.as_f64().unwrap_or(0.0)).collect();
+        if req.target_points.is_empty() {
+            return Err("目标块为空".into());
+        }
+        let mut sum = 0.0f64;
+        for &p in &req.target_points {
+            let (px, py) = (p % size, p / size);
+            let idx = (size - 1 - py) * size + px;
+            match owned.get(idx) {
+                Some(x) => sum += x,
+                None => return Err("目标点越界".into()),
+            }
+        }
+        let avg_black = sum / req.target_points.len() as f64;
+        let match_prob = if req.expect_owner >= 0 { avg_black } else { 1.0 - avg_black };
+        Ok(crate::ai::Verdict::from_prob(match_prob))
+    }
 }
 
 // ---------- 分级映射（文档 5.2） ----------

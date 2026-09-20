@@ -62,6 +62,8 @@ export interface ClickOutcome {
   done: boolean;
   message?: string;   // 反馈信息（不合法/位置不对/提示等）
   captured: number;
+  /** 合法、但不是预设正解（供 KataGo ownership 兜底判定） */
+  validAlternative?: boolean;
 }
 
 /**
@@ -151,8 +153,13 @@ export function handleTaskClick(e: TsEngine, spec: TaskStep, progress: number, p
           }
         }
       }
+      // P3-2 结果判定：seq 题目标全部被提 → 提前成功（不必走完预设手顺）
+      if (spec.targets?.length) {
+        const allGone = spec.targets.every((c) => e.board[coordToPos(size, c)] === 0);
+        if (allGone) return { applied: true, done: true, captured };
+      }
       const done = progress + 1 >= moves.length;
-      return { applied: true, done, captured, message: done ? undefined : undefined };
+      return { applied: true, done, captured };
     }
     case "connect": {
       if (!tryRes.ok) return { applied: false, done: false, message: tryRes.error, captured: 0 };
@@ -178,6 +185,32 @@ export function handleTaskClick(e: TsEngine, spec: TaskStep, progress: number, p
 
 /** 死活题点击处理 */
 export function handlePuzzleClick(e: TsEngine, p: Puzzle, progress: number, pos: number): ClickOutcome {
+  // exact（一手定胜负）：合法但不在预设正解 → 交由 KataGo ownership 兜底判定
+  if (p.kind === "exact") {
+    const size = e.size;
+    const expected = coordToPos(size, p.solution[0]);
+    if (pos !== expected) {
+      const tryRes = e.tryMove(pos, e.turn);
+      if (!tryRes.ok) {
+        return { applied: false, done: false, message: tryRes.error, captured: 0 };
+      }
+      return {
+        applied: false,
+        done: false,
+        captured: 0,
+        validAlternative: true,
+        message: "这手不在预设正解里，正在用 KataGo 判定是否同样达成目标…",
+      };
+    }
+    const tryRes2 = e.tryMove(pos, e.turn);
+    if (!tryRes2.ok) return { applied: false, done: false, message: tryRes2.error, captured: 0 };
+    e.play(pos);
+    return { applied: true, done: true, captured: tryRes2.captured.length };
+  }
+  return handleTaskClickForPuzzle(e, p, progress, pos);
+}
+
+function handleTaskClickForPuzzle(e: TsEngine, p: Puzzle, progress: number, pos: number): ClickOutcome {
   const step: TaskStep = {
     type: "task",
     title: p.title,
