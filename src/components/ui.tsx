@@ -46,6 +46,7 @@ const paths: Record<string, ReactNode> = {
   chevronLast: <path d="M7 6l6 6-6 6M17 6v12" />,
   check: <path d="M4 12l5 5L20 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   soundOn: <path d="M4 9v6h4l5 4V5L8 9zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" />,
   soundOff: <path d="M4 9v6h4l5 4V5L8 9zM17 9l4 6M21 9l-4 6" />,
   eye: (

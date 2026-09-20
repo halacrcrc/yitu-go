@@ -1,5 +1,5 @@
-// 应用外壳：侧边导航（可收缩）+ 视图切换 + 全局提示 + 主题
-import { useEffect } from "react";
+// 应用外壳：侧边导航（桌面可收缩 / 移动端 M3 抽屉）+ 视图切换 + 全局提示 + 主题
+import { useEffect, useRef } from "react";
 import { Icon } from "./components/ui";
 import { useStore, type View } from "./store";
 import { rankProgress } from "./content";
@@ -21,8 +21,24 @@ const NAV: { key: View; icon: string; label: string }[] = [
   { key: "profile", icon: "user", label: "我的" },
 ];
 
+function isMobile() {
+  return window.matchMedia("(max-width: 860px)").matches;
+}
+
 export function App() {
-  const { view, setView, loadProfile, profile, toast, game, collapsed, toggleCollapsed } = useStore();
+  const {
+    view,
+    setView,
+    loadProfile,
+    profile,
+    toast,
+    game,
+    collapsed,
+    toggleCollapsed,
+    drawerOpen,
+    setDrawerOpen,
+    toggleDrawer,
+  } = useStore();
 
   // 启动时先应用缓存主题，避免闪烁
   useEffect(() => {
@@ -31,10 +47,52 @@ export function App() {
     void loadProfile();
   }, []);
 
+  // 移动端：左边缘右滑打开抽屉、抽屉内左滑关闭
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      touch.current = { x: t.clientX, y: t.clientY };
+    };
+    const onEnd = (e: TouchEvent) => {
+      const start = touch.current;
+      touch.current = null;
+      if (!start) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - start.x;
+      const dy = Math.abs(t.clientY - start.y);
+      if (dy > 80) return;
+      if (!drawerOpen && start.x <= 28 && dx >= 56) setDrawerOpen(true);
+      else if (drawerOpen && start.x <= 280 && dx <= -56) setDrawerOpen(false);
+    };
+    window.addEventListener("touchstart", onStart, { passive: true });
+    window.addEventListener("touchend", onEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onStart);
+      window.removeEventListener("touchend", onEnd);
+    };
+  }, [drawerOpen, setDrawerOpen]);
+
+  const onNav = (v: View) => {
+    setView(v);
+    if (isMobile()) setDrawerOpen(false);
+  };
+
+  const drawerOpenCls = isMobile() && drawerOpen ? " drawer-open" : "";
+  // collapsed 是桌面收缩概念，移动端始终忽略
+  const collapsedCls = isMobile() ? "" : collapsed ? " collapsed" : "";
+
   return (
-    <div className={`app${collapsed ? " collapsed" : ""}`}>
+    <div className={`app${collapsedCls}${drawerOpenCls}`}>
+      {isMobile() && drawerOpen && (
+        <div className="drawer-mask" onClick={() => setDrawerOpen(false)} />
+      )}
+
       <nav className="sidebar">
         <div className="sidebar-top">
+          <button className="rail-toggle" onClick={toggleDrawer} title="菜单">
+            <Icon name={drawerOpen ? "close" : "menu"} size={20} />
+          </button>
           <div className="logo">
             <span className="logo-stone b" />
             <span className="logo-stone w" />
@@ -52,8 +110,8 @@ export function App() {
           <button
             key={n.key}
             className={`nav-item${view === n.key ? " on" : ""}`}
-            onClick={() => setView(n.key)}
-            title={collapsed ? n.label : undefined}
+            onClick={() => onNav(n.key)}
+            title={!isMobile() && collapsed ? n.label : undefined}
           >
             <Icon name={n.icon} size={19} />
             <span>{n.label}</span>
@@ -63,7 +121,11 @@ export function App() {
 
         <div className="sidebar-foot">
           {profile && (
-            <button className="rank-chip" onClick={() => setView("profile")} title={collapsed ? `${rankProgress(profile.rating).rank} · ${profile.rating}` : undefined}>
+            <button
+              className="rank-chip"
+              onClick={() => onNav("profile")}
+              title={!isMobile() && collapsed ? `${rankProgress(profile.rating).rank} · ${profile.rating}` : undefined}
+            >
               <Icon name="trophy" size={15} />
               <span>{rankProgress(profile.rating).rank}</span>
               <em>{profile.rating}</em>
