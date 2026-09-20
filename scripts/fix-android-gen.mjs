@@ -1,7 +1,11 @@
 // Android gen 工程补丁：tauri android init 后运行一次
-// 修复两个 Windows 构建问题：
-//   1) 中文项目路径触发 AGP 的路径检查 → android.overridePathCheck=true
-//   2) JDK 17.0.5+ 禁止 ProcessBuilder 直接启动 .bat → BuildTask 改经 cmd /c
+// 修复 Windows 构建问题与安卓 UI 适配，共 5 项：
+//   1) 中文路径检查覆盖（android.overridePathCheck=true）
+//   2) MainActivity：edge-to-edge 一体化（透明系统栏 + WebView 原生 insets padding，
+//      系统栏高度不再注入 CSS——原生避让 100% 可靠，不依赖 JS 时机）
+//   3) BuildTask 改经 cmd /c 启动 npm（JDK 17.0.5+ 限制）
+//   4) minSdk 29
+//   5) 主题：窗口背景墨绿色 + 透明系统栏（避让区域与界面浑然一体）
 // 用法: node scripts/fix-android-gen.mjs
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -12,7 +16,7 @@ if (!existsSync(gen)) {
   process.exit(1);
 }
 
-// 补丁 1：gradle.properties
+// ---------- 补丁 1：gradle.properties ----------
 const gradleProps = join(gen, "gradle.properties");
 let props = readFileSync(gradleProps, "utf8");
 if (!props.includes("android.overridePathCheck")) {
@@ -22,7 +26,7 @@ if (!props.includes("android.overridePathCheck")) {
   console.log("• gradle.properties: 已存在 overridePathCheck");
 }
 
-// 补丁 2：MainActivity.kt —— edge-to-edge 一体化：透明系统栏 + 高度注入 CSS 变量（--safe-top/--safe-bottom）
+// ---------- 补丁 2：MainActivity（edge-to-edge + 原生 insets padding） ----------
 const mainActivityKt = join(
   gen,
   "app",
@@ -37,52 +41,60 @@ const mainActivityKt = join(
 const fixedMainActivity = `package com.yitugo.app
 
 import android.annotation.SuppressLint
+import android.graphics.Color
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import kotlin.math.roundToInt
 
 class MainActivity : TauriActivity() {
-  private var safeTopPx = 0f   // 物理像素
-  private var safeBottomPx = 0f
-  private var lastInjectedTop = -1
+  // 安卓官方 edge-to-edge 范式：系统栏透明，WebView 通过原生 insets padding
+  // 避让状态栏/导航栏（Google "edge-to-edge" 指南的标准做法）。
+  // 相比注入 CSS 变量：不依赖 JS 注入时机，WebView 一创建即正确避让。
+  private var webView: WebView? = null
+  private var lastTop = -1
+  private var lastBottom = -1
 
-  // edge-to-edge 一体化：状态栏/导航栏透明，应用背景延伸到系统栏后面。
-  // 系统栏高度除以屏幕密度后注入 CSS 变量（--safe-top/--safe-bottom，单位 CSS px），
-  // 前端按需避让；注入分多轮重试以覆盖 WebView 异步创建与页面加载的时机。
   @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+
     val contentView = findViewById<View>(android.R.id.content)
+    contentView.viewTreeObserver.addOnGlobalLayoutListener { applyInsets() }
+
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { _, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      safeTopPx = bars.top.toFloat()
-      safeBottomPx = bars.bottom.toFloat()
-      injectSafeArea()
-      insets // 不消费：WebView 仍能拿到 insets（供其内部使用）
+      applyInsets(bars.top, bars.bottom)
+      insets
     }
-    // WebView 就绪时机不定（Rust 侧异步创建），分多轮注入保证页面加载后变量就位
-    val handler = Handler(Looper.getMainLooper())
-    listOf(500L, 1200L, 2500L, 4000L, 6000L, 9000L, 13000L).forEach { delay ->
-      handler.postDelayed({ injectSafeArea() }, delay)
-    }
-  }
-
-  override fun onWindowFocusChanged(hasFocus: Boolean) {
-    super.onWindowFocusChanged(hasFocus)
-    if (hasFocus) injectSafeArea()
   }
 
   override fun onResume() {
     super.onResume()
-    injectSafeArea()
+    applyInsets()
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus) applyInsets()
+  }
+
+  private fun applyInsets(top: Int = lastTop, bottom: Int = lastBottom) {
+    if (top <= 0 && bottom <= 0) return
+    if (top == lastTop && bottom == lastBottom && webView != null) return
+    if (webView == null) {
+      val root = findViewById<View>(android.R.id.content) ?: return
+      webView = findWebView(root) ?: return
+      // WebView 背景透明：避让区域显示 Activity 主题背景，与界面浑然一体
+      webView?.setBackgroundColor(Color.TRANSPARENT)
+    }
+    lastTop = top
+    lastBottom = bottom
+    webView?.setPadding(0, top, 0, bottom)
   }
 
   private fun findWebView(root: View): WebView? {
@@ -94,35 +106,22 @@ class MainActivity : TauriActivity() {
     }
     return null
   }
-
-  private fun injectSafeArea() {
-    if (safeTopPx <= 0f && safeBottomPx <= 0f) return
-    val root = findViewById<View>(android.R.id.content) ?: return
-    val web = findWebView(root) ?: return
-    val density = resources.displayMetrics.density
-    val topDp = (safeTopPx / density).roundToInt()
-    val bottomDp = (safeBottomPx / density).roundToInt()
-    if (topDp == lastInjectedTop) return // 值未变化且已注入过
-    lastInjectedTop = topDp
-    val js = "(function(){var d=document.documentElement;d.style.setProperty('--safe-top','\${topDp}px');d.style.setProperty('--safe-bottom','\${bottomDp}px');})();"
-    web.evaluateJavascript(js, null)
-  }
 }
 `;
 if (existsSync(mainActivityKt)) {
   const cur = readFileSync(mainActivityKt, "utf8");
-  if (!cur.includes("setOnApplyWindowInsetsListener")) {
+  if (!cur.includes("applyInsets")) {
     writeFileSync(mainActivityKt, fixedMainActivity);
-    console.log("✓ MainActivity.kt: 添加系统栏避让（insets padding）");
+    console.log("✓ MainActivity.kt: edge-to-edge + 原生 insets padding");
   } else {
-    console.log("• MainActivity.kt: 已包含状态栏避让补丁");
+    console.log("• MainActivity.kt: 已包含 insets 补丁");
   }
 } else {
   console.error("✗ 未找到 MainActivity.kt");
   process.exit(1);
 }
 
-// 补丁 3：BuildTask.kt 改用 cmd /c 启动 npm
+// ---------- 补丁 3：BuildTask 改用 cmd /c 启动 npm ----------
 const buildTaskKt = join(
   gen,
   "buildSrc",
@@ -158,9 +157,8 @@ if (kt.includes(oldExec)) {
   console.error("✗ BuildTask.kt: 结构与预期不符，请手动检查");
   process.exit(1);
 }
-console.log("补丁完成。现在可以运行: npx tauri android build --apk --target aarch64");
 
-// 补丁 4：minSdk 升到 29（Android 10+）
+// ---------- 补丁 4：minSdk 29 ----------
 const appGradle = join(gen, "app", "build.gradle.kts");
 if (existsSync(appGradle)) {
   let g = readFileSync(appGradle, "utf8");
@@ -170,7 +168,40 @@ if (existsSync(appGradle)) {
     console.log("✓ app/build.gradle.kts: minSdk 24 → 29");
   } else if (/minSdk\s*=\s*29/.test(g)) {
     console.log("• app/build.gradle.kts: minSdk 已为 29");
-  } else {
-    console.error("✗ app/build.gradle.kts: 未找到 minSdk 行，请手动检查");
   }
 }
+
+// ---------- 补丁 5：主题背景色 + 透明系统栏 ----------
+const themesFiles = [
+  join(gen, "app", "src", "main", "res", "values", "themes.xml"),
+  join(gen, "app", "src", "main", "res", "values-night", "themes.xml"),
+];
+const colorsXml = join(gen, "app", "src", "main", "res", "values", "colors.xml");
+const themeInject =
+  '<item name="android:windowBackground">@color/yitu_window_bg</item>' +
+  '<item name="android:statusBarColor">@android:color/transparent</item>' +
+  '<item name="android:navigationBarColor">@android:color/transparent</item>';
+for (const f of themesFiles) {
+  if (!existsSync(f)) continue;
+  let x = readFileSync(f, "utf8");
+  if (!x.includes("windowBackground")) {
+    x = x.replace(
+      '<style name="Theme.yitu_go" parent="Theme.MaterialComponents.DayNight.NoActionBar">',
+      '<style name="Theme.yitu_go" parent="Theme.MaterialComponents.DayNight.NoActionBar">' + themeInject,
+    );
+    writeFileSync(f, x);
+    console.log("✓ themes.xml: windowBackground + 透明系统栏");
+  } else {
+    console.log("• themes.xml: 已配置");
+  }
+}
+if (existsSync(colorsXml)) {
+  let c = readFileSync(colorsXml, "utf8");
+  if (!c.includes("yitu_window_bg")) {
+    c = c.replace("</resources>", '    <color name="yitu_window_bg">#0B100E</color>\n</resources>');
+    writeFileSync(colorsXml, c);
+    console.log("✓ colors.xml: yitu_window_bg");
+  }
+}
+
+console.log("补丁完成。现在可以运行: npx tauri android build --apk --target aarch64");
