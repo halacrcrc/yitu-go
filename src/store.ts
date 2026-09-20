@@ -15,6 +15,10 @@ interface AppState {
   collapsed: boolean;
   toggleCollapsed: () => void;
 
+  drawerOpen: boolean;
+  setDrawerOpen: (b: boolean) => void;
+  toggleDrawer: () => void;
+
   profile: Profile | null;
   loadProfile: () => Promise<void>;
   saveProfile: (p: Profile) => Promise<void>;
@@ -55,6 +59,10 @@ export const useStore = create<AppState>((set, get) => ({
     localStorage.setItem(LS_SIDEBAR, next ? "1" : "0");
     set({ collapsed: next });
   },
+
+  drawerOpen: false,
+  setDrawerOpen: (b) => set({ drawerOpen: b }),
+  toggleDrawer: () => set({ drawerOpen: !get().drawerOpen }),
 
   profile: null,
   loadProfile: async () => {

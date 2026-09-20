@@ -22,7 +22,7 @@ if (!props.includes("android.overridePathCheck")) {
   console.log("• gradle.properties: 已存在 overridePathCheck");
 }
 
-// 补丁 2：MainActivity.kt —— enableEdgeToEdge 后给内容加系统栏避让，防止与状态栏重叠
+// 补丁 2：MainActivity.kt —— edge-to-edge 一体化：透明系统栏 + 高度注入 CSS 变量（--safe-top/--safe-bottom）
 const mainActivityKt = join(
   gen,
   "app",
@@ -36,24 +36,62 @@ const mainActivityKt = join(
 );
 const fixedMainActivity = `package com.yitugo.app
 
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
+import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : TauriActivity() {
+  private var safeTop = 0
+  private var safeBottom = 0
+
+  // edge-to-edge 一体化：状态栏/导航栏透明，应用背景延伸到系统栏后面。
+  // 系统栏高度通过 CSS 变量注入 WebView，由前端自行决定避让方式。
+  @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
-    // edge-to-edge 模式下，给根内容视图加上系统栏（状态栏/导航栏）内边距，
-    // 避免 WebView 内容与状态栏重叠
     val contentView = findViewById<View>(android.R.id.content)
-    ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, insets ->
+    ViewCompat.setOnApplyWindowInsetsListener(contentView) { _, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-      WindowInsetsCompat.CONSUMED
+      safeTop = bars.top
+      safeBottom = bars.bottom
+      injectSafeArea()
+      insets // 不消费：WebView 仍能拿到 insets（供其内部使用）
     }
+    // WebView 就绪时机不定（Rust 侧异步创建），分几轮注入保证页面加载后变量就位
+    val handler = Handler(Looper.getMainLooper())
+    listOf(600L, 1500L, 3000L, 5000L).forEach { delay ->
+      handler.postDelayed({ injectSafeArea() }, delay)
+    }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    injectSafeArea()
+  }
+
+  private fun findWebView(root: View): WebView? {
+    if (root is WebView) return root
+    if (root is ViewGroup) {
+      for (i in 0 until root.childCount) {
+        findWebView(root.getChildAt(i))?.let { return it }
+      }
+    }
+    return null
+  }
+
+  private fun injectSafeArea() {
+    val root = findViewById<View>(android.R.id.content) ?: return
+    val web = findWebView(root) ?: return
+    val js = "(function(){var d=document.documentElement;d.style.setProperty('--safe-top','\${safeTop}px');d.style.setProperty('--safe-bottom','\${safeBottom}px');})();"
+    web.evaluateJavascript(js, null)
   }
 }
 `;

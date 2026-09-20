@@ -26,6 +26,8 @@
 
 :root {
   --radius: 18px;
+  --safe-top: 0px;
+  --safe-bottom: 0px;
 }
 
 :root[data-theme="light"] {
@@ -616,7 +618,7 @@ h3 {
 
 .toast {
   position: fixed;
-  bottom: 26px;
+  bottom: calc(26px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   padding: 11px 22px;
@@ -993,22 +995,39 @@ input[type="range"] { height: 4px; }
 
 /* ===== 移动端适配 ===== */
 @media (max-width: 860px) and (min-height: 481px) {
-  /* 安卓标准侧边栏（navigation rail）：竖排图标栏，顶部避让系统状态栏 */
+  /* M3 Navigation Drawer：默认收起为 rail，汉堡/边缘右滑展开；顶部避让系统状态栏 */
   .app { flex-direction: row !important; }
   .sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    bottom: 0;
     flex-direction: column !important;
-    width: 68px !important;
-    padding: 10px 6px !important;
-    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+    width: 64px !important;
+    padding: calc(10px + var(--safe-top)) 6px 12px !important;
     border-right: 1px solid var(--border);
     border-bottom: none !important;
     align-items: center;
     gap: 2px;
+    z-index: 80;
+    transition: width 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1);
   }
-  .sidebar .logo { display: none !important; }
   .sidebar .collapse-btn { display: none !important; }
+  .sidebar .logo div { display: none !important; }
+  .rail-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+  }
+  .rail-toggle:active { background: var(--panel2); }
   .nav-item {
-    width: 56px;
+    width: 52px;
     flex-direction: column;
     gap: 3px;
     padding: 9px 2px !important;
@@ -1020,7 +1039,50 @@ input[type="range"] { height: 4px; }
   .sidebar-foot { display: contents; }
   .rank-chip { width: 52px !important; flex-direction: column; gap: 2px; padding: 8px 4px !important; }
   .rank-chip em { margin-left: 0 !important; font-size: 10px; }
-  .content { padding: 12px 10px 24px; overflow-y: auto; }
+  .content {
+    margin-left: 64px;
+    padding: calc(12px + var(--safe-top)) 10px calc(24px + var(--safe-bottom));
+    overflow-y: auto;
+  }
+
+  /* 抽屉展开态：完整侧边栏（图标 + 文字），覆盖式 + 毛玻璃 */
+  .app.drawer-open .sidebar {
+    width: 248px !important;
+    z-index: 90;
+    box-shadow: var(--shadow);
+    background: var(--glass-bg);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  }
+  .app.drawer-open .logo { display: flex !important; padding: 4px 8px 14px; }
+  .app.drawer-open .logo div { display: block !important; }
+  .app.drawer-open .rail-toggle { align-self: flex-end; }
+  .app.drawer-open .nav-item {
+    width: 100%;
+    flex-direction: row;
+    gap: 14px;
+    padding: 13px 18px !important;
+    font-size: 14.5px;
+  }
+  .app.drawer-open .nav-item span { font-size: 14.5px; }
+  .app.drawer-open .nav-item svg { width: 20px; height: 20px; }
+  .app.drawer-open .sidebar-foot { display: block; margin-top: auto; width: 100%; }
+  .app.drawer-open .rank-chip {
+    width: 100% !important;
+    flex-direction: row;
+    padding: 10px 12px !important;
+    gap: 8px;
+  }
+  .app.drawer-open .rank-chip em { margin-left: auto !important; font-size: 12.5px; }
+}
+.drawer-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 6, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 75;
+  animation: fadeIn 0.2s;
+}
 
   .play, .task-step, .puzzle-body, .replay-body,
   .tutorial, .puzzle, .library { flex-direction: column !important; align-items: stretch !important; }
@@ -1052,7 +1114,7 @@ input[type="range"] { height: 4px; }
   .app { flex-direction: row !important; }
   .sidebar {
     width: 60px !important;
-    padding: 8px 6px !important;
+    padding: calc(8px + var(--safe-top)) 6px calc(8px + var(--safe-bottom)) !important;
     border-right: 1px solid var(--border);
     border-bottom: none !important;
   }
@@ -1150,7 +1212,7 @@ input[type="range"] { height: 4px; }
 /* 数子浮动按钮（毛玻璃胶囊） */
 .scoring-fab {
   position: fixed;
-  bottom: 26px;
+  bottom: calc(26px + var(--safe-bottom));
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
@@ -1173,4 +1235,10 @@ input[type="range"] { height: 4px; }
 /* 不支持 backdrop-filter 的设备回退为不透明 */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .modal, .toast, .scoring-fab { background: var(--toast-bg); }
+}
+
+/* 汉堡按钮仅移动端显示 */
+.rail-toggle { display: none; }
+@media (max-width: 860px) {
+  .rail-toggle { display: flex; }
 }
