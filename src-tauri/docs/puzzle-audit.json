@@ -1,0 +1,212 @@
+{
+  "ok": 0,
+  "puzzles": {
+    "p1-1": {
+      "targets": [
+        40
+      ],
+      "verdict": "failed"
+    },
+    "p1-2": {
+      "targets": [
+        0
+      ],
+      "verdict": "failed"
+    },
+    "p1-3": {
+      "targets": [
+        40,
+        49
+      ],
+      "verdict": "failed"
+    },
+    "p1-4": {
+      "targets": [
+        36
+      ],
+      "verdict": "failed"
+    },
+    "p1-5": {
+      "targets": [
+        31,
+        40,
+        49
+      ],
+      "verdict": "failed"
+    },
+    "p1-6": {
+      "targets": [
+        0,
+        9
+      ],
+      "verdict": "failed"
+    },
+    "p1-7": {
+      "targets": [
+        31,
+        40,
+        49,
+        58
+      ],
+      "verdict": "failed"
+    },
+    "p1-8": {
+      "targets": [
+        30,
+        60
+      ],
+      "verdict": "failed"
+    },
+    "p2-1": {
+      "targets": [
+        30,
+        32
+      ],
+      "verdict": "failed"
+    },
+    "p2-2": {
+      "targets": [
+        30,
+        32
+      ],
+      "verdict": "failed"
+    },
+    "p2-3": {
+      "targets": [
+        39,
+        41,
+        31
+      ],
+      "verdict": "unclear"
+    },
+    "p2-4": {
+      "targets": [
+        21
+      ],
+      "verdict": "failed"
+    },
+    "p2-5": {
+      "targets": [
+        38,
+        40,
+        30
+      ],
+      "verdict": "unclear"
+    },
+    "p2-6": {
+      "targets": [
+        19,
+        20
+      ],
+      "verdict": "failed"
+    },
+    "p2-7": {
+      "targets": [
+        30,
+        32
+      ],
+      "verdict": "failed"
+    },
+    "p2-8": {
+      "targets": [
+        21,
+        22
+      ],
+      "verdict": "failed"
+    },
+    "p3-1": {
+      "targets": [
+        0,
+        9,
+        10,
+        11,
+        12,
+        13,
+        4
+      ],
+      "verdict": "failed"
+    },
+    "p3-2": {
+      "targets": [
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        14,
+        5
+      ],
+      "verdict": "unclear"
+    },
+    "p3-3": {
+      "targets": [
+        0,
+        9,
+        1,
+        10,
+        3,
+        12
+      ],
+      "verdict": "failed"
+    },
+    "p3-4": {
+      "targets": [
+        0,
+        9,
+        10,
+        19,
+        20,
+        21,
+        12,
+        3
+      ],
+      "verdict": "failed"
+    },
+    "p3-5": {
+      "targets": [
+        21,
+        22,
+        23
+      ],
+      "verdict": "failed"
+    },
+    "p3-6": {
+      "targets": [
+        27,
+        28,
+        29,
+        30,
+        31,
+        5,
+        14,
+        23
+      ],
+      "verdict": "unclear"
+    },
+    "p3-7": {
+      "targets": [
+        48
+      ],
+      "verdict": "failed"
+    },
+    "p4-1": {
+      "targets": [
+        40
+      ],
+      "verdict": "failed"
+    },
+    "p4-2": {
+      "error": "KataGo 错误: Illegal move 2: E5"
+    },
+    "p4-3": {
+      "targets": [
+        30,
+        39,
+        22
+      ],
+      "verdict": "unclear"
+    }
+  },
+  "warn": 26
+}

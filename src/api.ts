@@ -94,6 +94,8 @@ export interface MoveAnalysis {
   score_lead_black: number;
 }
 
+export type Verdict = "achieved" | "failed" | "unclear";
+
 export interface AiStatus {
   engine: string;
   backend: string;
@@ -140,6 +142,21 @@ export const api = {
           throw new Error(String(e));
         })
       : Promise.reject(new Error("浏览器演示模式不支持 AI 分析")),
+  judgePosition: (args: {
+    size: number;
+    komi: number;
+    initial_black: number[];
+    initial_white: number[];
+    moves: MoveDto[];
+    target_points: number[];
+    expect_owner: number;
+    visits: number;
+  }): Promise<Verdict> =>
+    IS_TAURI
+      ? invoke<Verdict>("judge_position", args).catch((e) => {
+          throw new Error(String(e));
+        })
+      : Promise.reject(new Error("浏览器演示模式不支持判题")),
   aiStatus: (): Promise<AiStatus | null> =>
     IS_TAURI ? invoke<AiStatus>("ai_status").catch(() => null) : Promise.resolve(null),
   enterScoring: (): Promise<GameStateDto> => invokeOrLocal("enter_scoring"),

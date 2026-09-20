@@ -63,7 +63,54 @@ pub trait GoEngine: Send + Sync {
         let _ = req;
         Err("当前引擎不支持分析".into())
     }
+    /// 死活判题（KataGo ownership，文档第六章；内置引擎不支持）
+    fn judge_position(&self, req: &JudgeRequest) -> Result<Verdict, String> {
+        let _ = req;
+        Err("当前引擎不支持判题".into())
+    }
     fn capability(&self) -> Capability;
+}
+
+/// 死活判题请求：判断 target_points 这块棋的最终归属是否符合预期
+/// （文档第六章：判「死没死」，不判「是否下了预设手」）。
+/// 题面摆子（黑白）进 initial，手顺（含玩家这手）进 moves——**不要用 Game 传**，
+/// 否则题面白子会在 initialStones 构造时丢失（v1.5.0 实测踩坑）。
+pub struct JudgeRequest {
+    pub size: usize,
+    pub komi: f64,
+    pub initial_black: Vec<usize>,
+    pub initial_white: Vec<usize>,
+    /// 手顺（side_num: 1黑 2白；与 initial 合并后须为合法交替或由调用方保证一致）
+    pub moves: Vec<(u8, usize)>,
+    /// 目标块的所有点（棋盘序号）
+    pub target_points: Vec<usize>,
+    /// 期望的最终归属：+1 = 归黑（目标块被杀/己方做活），-1 = 归白
+    pub expect_owner: i8,
+    /// 搜索访问数（判题纪律：正常模型 + 足量 visits，禁止 humanSL/低 visit）
+    pub visits: u32,
+}
+
+/// 三值判定结果（文档 6.2：劫活/复杂形不得粗暴判错）
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub enum Verdict {
+    /// 达成（归属概率 ≥ 0.8 符合预期）
+    Achieved,
+    /// 未达成（归属概率 ≤ 0.2 符合预期反向）
+    Failed,
+    /// 不明确（0.2~0.8 之间，可能是劫/依赖后续手顺）
+    Unclear,
+}
+
+impl Verdict {
+    pub fn from_prob(match_prob: f64) -> Verdict {
+        if match_prob >= 0.8 {
+            Verdict::Achieved
+        } else if match_prob <= 0.2 {
+            Verdict::Failed
+        } else {
+            Verdict::Unclear
+        }
+    }
 }
 
 /// 复盘分析请求：对对局 [from, to) 手区间做逐手评估

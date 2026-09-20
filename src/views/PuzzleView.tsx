@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "../components/Board";
 import { Icon } from "../components/ui";
-import { content, TIER_NAMES, type Puzzle } from "../content";
+import { content, coordToPos, TIER_NAMES, type Puzzle } from "../content";
 import { makeBoard, handlePuzzleClick, replaySolution, sideOf } from "../goal";
 import { TsEngine } from "../engine";
 import { useStore } from "../store";
@@ -90,7 +90,7 @@ function PuzzleBoard({ puzzle, indexInTier, tierCount, onNav }: { puzzle: Puzzle
     }
   };
 
-  const retry = () => {
+    const retry = () => {
     setEngine(makeBoard(9, puzzle.stones, puzzle.toMove));
     setProgress(0);
     setDone(false);

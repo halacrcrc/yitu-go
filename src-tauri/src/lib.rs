@@ -24,6 +24,7 @@ pub fn run() {
             commands::hint,
             commands::ai_status,
             commands::analyze_moves,
+            commands::judge_position,
             commands::enter_scoring,
             commands::toggle_dead,
             commands::resume_scoring,
