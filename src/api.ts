@@ -86,6 +86,12 @@ export interface RecordData {
   black_score: number | null;
   white_score: number | null;
 }
+export interface AiCapability {
+  name: string;
+  backend: string;
+  human_sl: boolean;
+}
+
 export interface NewGameReq {
   size: number;
   komi: number;
@@ -108,6 +114,8 @@ export const api = {
   resign: (side: "black" | "white"): Promise<GameStateDto> => invokeOrLocal("resign", { side }),
   aiMove: (): Promise<GameStateDto> => invokeOrLocal("ai_move"),
   hint: (): Promise<number | null> => invokeOrLocal("hint"),
+  aiStatus: (): Promise<AiCapability | null> =>
+    IS_TAURI ? invoke<AiCapability>("ai_status").catch(() => null) : Promise.resolve(null),
   enterScoring: (): Promise<GameStateDto> => invokeOrLocal("enter_scoring"),
   toggleDead: (pos: number): Promise<GameStateDto> => invokeOrLocal("toggle_dead", { pos }),
   resumeScoring: (): Promise<GameStateDto> => invokeOrLocal("resume_scoring"),

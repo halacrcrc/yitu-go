@@ -107,3 +107,18 @@ if (kt.includes(oldExec)) {
   process.exit(1);
 }
 console.log("补丁完成。现在可以运行: npx tauri android build --apk --target aarch64");
+
+// 补丁 4：minSdk 升到 29（Android 10+）
+const appGradle = join(gen, "app", "build.gradle.kts");
+if (existsSync(appGradle)) {
+  let g = readFileSync(appGradle, "utf8");
+  if (/minSdk\s*=\s*24/.test(g)) {
+    g = g.replace(/minSdk\s*=\s*24/, "minSdk = 29");
+    writeFileSync(appGradle, g);
+    console.log("✓ app/build.gradle.kts: minSdk 24 → 29");
+  } else if (/minSdk\s*=\s*29/.test(g)) {
+    console.log("• app/build.gradle.kts: minSdk 已为 29");
+  } else {
+    console.error("✗ app/build.gradle.kts: 未找到 minSdk 行，请手动检查");
+  }
+}

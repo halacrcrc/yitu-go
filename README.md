@@ -12,7 +12,11 @@
 
 ### ⛺ 对弈
 - **完整围棋规则**（Rust 引擎）：提子、禁入点（自杀禁止）、打劫、中国规则数子法
-- **8 级 AI 对手**：启发式 + 蒙特卡洛模拟，从「木木小童」到「棋院大师」，AI 严格遵守打劫规则
+- **10 级 AI 对手**：从「木木小童」到「职业棋士」，AI 严格遵守打劫规则
+- **双引擎架构**（`GoEngine` trait，文档式分层）：
+  - **KataGo**（可选，自动探测）：子进程 + analysis JSON 协议，随机 rollout 全部 replaced 为神经网络搜索；支持 humanSL 人类风格模型做段位分级（1~8 档按 rank_20k→rank_3d 概率采样，忠实还原该段位真实下法）
+  - **内置引擎**（兜底，永远可用）：启发式 + 并行蒙特卡洛 + 征子读取；rollout 终局判定按中国规则数空（BFS 归属），修复了只数子不计空的胜率失真
+  - KataGo 缺失/崩溃/超时自动降级到内置引擎，应用始终可玩
 - **9 / 13 / 19 路**棋盘，执黑/执白可选，**让 2~9 子**让子棋
 - **计段位对局**：Elo 等级分，胜升负降，段位自动晋升（30级 → 1级 → 业余段 → 职业段）
 - 双人对弈（同屏轮流）
@@ -67,6 +71,20 @@ npx tauri android build --apk --target aarch64   # 生成 release APK
 ```
 
 产物在 `src-tauri/gen/android/app/build/outputs/apk/universal/release/`（未签名）；用 `build-tools/<版本>/zipalign + apksigner` 签名后即可安装。注意：项目路径请避免非 ASCII 字符，或使用 `android.overridePathCheck=true` 覆盖。
+
+### 启用 KataGo 引擎（可选，桌面端）
+
+应用启动时自动探测 `%LOCALAPPDATA%/com.yitugo.app/katago/`（或对应平台 app_data_dir）目录，存在以下文件即启用，否则使用内置引擎：
+
+| 文件 | 说明 |
+| --- | --- |
+| `katago.exe` | KataGo analysis 引擎（建议 v1.15.x Eigen/EigenAVX2 Windows 版） |
+| `model.bin.gz` | 网络权重。当前部署方案：humanSL 模型 `b18c384nbt-humanv0.bin.gz`（v1.15.0 release 提供，99MB），适配器会自动探测并按档位切换 rank profile |
+| `katago.cfg` | 缺省时自动生成（Eigen 档：4 线程 + maxTime 3s 兜底） |
+
+- 探测过程全自动：humanSL 模型需要 `humanSLProfile` 声明，适配器通过探针查询自动适配并重启
+- 「提示」按钮固定使用正常搜索模式，不随对局档位变化（hint 语义）
+- Android 端 NDK 集成（libkatago.so + dlopen）在路线图中，当前安卓使用内置引擎
 
 ### 结构
 

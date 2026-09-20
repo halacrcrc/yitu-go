@@ -876,7 +876,7 @@ fn playout(game: &Game, first: usize, side: Side, lv: usize) -> bool {
 
     // 先落第一手
     if apply_playout(&mut b, &mut ko, first, side, size).is_none() {
-        return area_win(&b, game.komi, side);
+        return area_win(&b, game.size, game.komi, side);
     }
     let mut turn = side.opp();
     let mut moves = 1;
@@ -906,7 +906,7 @@ fn playout(game: &Game, first: usize, side: Side, lv: usize) -> bool {
         turn = turn.opp();
         moves += 1;
     }
-    area_win(&b, game.komi, side)
+    area_win(&b, game.size, game.komi, side)
 }
 
 fn apply_playout(b: &mut Vec<u8>, ko: &mut Option<usize>, pos: usize, side: Side, size: usize) -> Option<usize> {
@@ -955,14 +955,35 @@ fn apply_playout(b: &mut Vec<u8>, ko: &mut Option<usize>, pos: usize, side: Side
     Some(pos)
 }
 
-fn area_win(b: &[u8], komi: f64, side: Side) -> bool {
-    let mut black = 0.0;
+/// 终局判定（中国规则近似）：活子 + 空点归属。
+/// v1.3 的实现只数盘上子数、不计空点，导致 rollout 胜率与真实局面优劣
+/// 相关性弱（文档评审 1.2 指出的最大失真源）。空点归属用黑白双源 BFS
+/// 距离比较：距一方显著更近（+2 缓冲）才计为该方地，中立点不计。
+fn area_win(b: &[u8], size: usize, komi: f64, side: Side) -> bool {
+    let dist_b = multi_bfs(b, size, BLACK);
+    let dist_w = multi_bfs(b, size, WHITE);
+    let mut black = 0.0f64;
     let mut white = komi;
-    for &c in b {
+    for (i, &c) in b.iter().enumerate() {
         match c {
             BLACK => black += 1.0,
             WHITE => white += 1.0,
-            _ => {}
+            _ => {
+                let db = dist_b[i];
+                let dw = dist_w[i];
+                if db == u32::MAX && dw == u32::MAX {
+                    continue;
+                }
+                if db == u32::MAX {
+                    white += 1.0;
+                } else if dw == u32::MAX {
+                    black += 1.0;
+                } else if db + 2 < dw {
+                    black += 1.0;
+                } else if dw + 2 < db {
+                    white += 1.0;
+                }
+            }
         }
     }
     match side {

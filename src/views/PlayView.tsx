@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Board, type BoardMark } from "../components/Board";
 import { Icon, Modal } from "../components/ui";
-import { api, IS_TAURI, type GameStateDto, type NewGameReq } from "../api";
+import { api, IS_TAURI, type AiCapability, type GameStateDto, type NewGameReq } from "../api";
 import { content, coordName } from "../content";
 import { doPlayMove, useStore } from "../store";
 
@@ -14,11 +14,23 @@ export function PlayView() {
   const [pending, setPending] = useState<number | null>(null);
   const [hintPos, setHintPos] = useState<number | null>(null);
   const [confirmResign, setConfirmResign] = useState(false);
+  const [scoringModalOpen, setScoringModalOpen] = useState(false);
+  const [aiCap, setAiCap] = useState<AiCapability | null>(null);
+
+  useEffect(() => {
+    void api.aiStatus().then(setAiCap);
+  }, []);
 
   // 无对局时打开新对局弹窗
   useEffect(() => {
     if (!game) setShowNewGame(true);
   }, [game]);
+
+  // 进入数子阶段时自动弹出数子弹窗
+  useEffect(() => {
+    if (game?.phase === "scoring") setScoringModalOpen(true);
+    else setScoringModalOpen(false);
+  }, [game?.phase]);
 
   // AI 行棋触发
   useEffect(() => {
@@ -114,7 +126,6 @@ export function PlayView() {
     try {
       const g = await api.enterScoring();
       setGame(g);
-      showToast("已进入数子阶段：点击棋子标记死子，确认后计算胜负", "success");
     } catch (e: any) {
       showToast(String(e?.message ?? e), "error");
     }
@@ -155,6 +166,29 @@ export function PlayView() {
   if (pending !== null) marks.push({ pos: pending, kind: "pending" });
   if (hintPos !== null) marks.push({ pos: hintPos, kind: "hint" });
 
+  // 数子阶段实时比分预览（中国规则：活子 + 归属空点，死子点归对方地）
+  const liveScore = useMemo(() => {
+    if (!game || game.phase !== "scoring") return null;
+    const deadSet = new Set(game.dead);
+    let b = 0;
+    let w = game.komi;
+    for (let i = 0; i < game.board.length; i++) {
+      const stone = game.board[i];
+      if (deadSet.has(i)) {
+        const t = game.territory?.[i] ?? 0;
+        if (t === 1) b++;
+        else if (t === 2) w++;
+      } else if (stone === 1) b++;
+      else if (stone === 2) w++;
+      else {
+        const t = game.territory?.[i] ?? 0;
+        if (t === 1) b++;
+        else if (t === 2) w++;
+      }
+    }
+    return { b, w };
+  }, [game]);
+
   if (!game) {
     return (
       <div className="play-empty">
@@ -186,7 +220,7 @@ export function PlayView() {
       <div className="play-board">
         {game.phase === "scoring" && (
           <div className="scoring-banner">
-            <Icon name="target" size={16} /> 数子阶段 — 点击棋子可切换整块死子（红叉为死子），确认后按中国规则数子
+            <Icon name="target" size={16} /> 数子阶段 · 点击棋子标记死子
           </div>
         )}
         <Board
@@ -229,6 +263,11 @@ export function PlayView() {
           <span>贴 {game.komi} 目</span>
           {game.handicap >= 2 && <span className="badge">让{game.handicap}子</span>}
           {game.rated && <span className="badge badge-green">计入段位</span>}
+          {aiCap && (
+            <span className="badge" title={aiCap.human_sl ? "已加载人类风格模型" : ""}>
+              {aiCap.name === "katago" ? `KataGo·${aiCap.backend}` : "内置 AI"}
+            </span>
+          )}
         </div>
 
         {game.phase === "ended" ? (
@@ -248,11 +287,22 @@ export function PlayView() {
             </div>
           </div>
         ) : game.phase === "scoring" ? (
-          <div className="card">
-            <div className="row gap wrap">
-              <button className="btn primary" onClick={onConfirmScore}><Icon name="check" size={16} /> 确认数子</button>
-              <button className="btn" onClick={onResume}>返回对局</button>
+          <div className="card scoring-side">
+            <div className="score-preview">
+              <div className="sp-side">
+                <span className="stone-dot black small" />
+                <b>{liveScore ? liveScore.b.toFixed(1) : "—"}</b>
+              </div>
+              <span className="sp-vs">:</span>
+              <div className="sp-side">
+                <b>{liveScore ? liveScore.w.toFixed(1) : "—"}</b>
+                <span className="stone-dot white small" />
+              </div>
             </div>
+            <p className="muted small" style={{ textAlign: "center" }}>黑 : 白（白含贴 {game.komi} 目）</p>
+            <button className="btn primary pill" style={{ width: "100%", justifyContent: "center" }} onClick={() => setScoringModalOpen(true)}>
+              <Icon name="check" size={16} /> 完成数子
+            </button>
           </div>
         ) : (
           <div className="card controls">
@@ -282,6 +332,54 @@ export function PlayView() {
           <button className="btn" onClick={() => setConfirmResign(false)}>再想想</button>
         </div>
       </Modal>
+
+      <Modal open={scoringModalOpen && game.phase === "scoring"} title="数子 · 终局确认" onClose={() => setScoringModalOpen(false)} width={430}>
+        <div className="scoring-modal">
+          <div className="score-preview lg">
+            <div className="sp-side">
+              <span className="stone-dot black" />
+              <div>
+                <b>{liveScore ? liveScore.b.toFixed(1) : "—"}</b>
+                <small>黑（子+地）</small>
+              </div>
+            </div>
+            <span className="sp-vs">:</span>
+            <div className="sp-side">
+              <div>
+                <b>{liveScore ? liveScore.w.toFixed(1) : "—"}</b>
+                <small>白（含贴 {game.komi} 目）</small>
+              </div>
+              <span className="stone-dot white" />
+            </div>
+          </div>
+          {liveScore && (
+            <div className={`score-lead ${liveScore.b > liveScore.w ? "b" : "w"}`}>
+              {liveScore.b === liveScore.w
+                ? "双方持平（极罕见）"
+                : `${liveScore.b > liveScore.w ? "黑" : "白"}领先 ${Math.abs(liveScore.b - liveScore.w).toFixed(1)} 目`}
+            </div>
+          )}
+          <p className="muted small">
+            点击棋盘上的棋子可切换整块「死子」标记（红叉为死子，其地归对方）。标记完成后确认终局；
+            若还想继续下，可返回对局。
+          </p>
+          <div className="scoring-actions">
+            <button className="btn primary pill" onClick={onConfirmScore}>
+              <Icon name="check" size={16} /> 确认数子
+            </button>
+            <button className="btn pill" onClick={onResume}>返回对局</button>
+            <button className="btn ghost pill" onClick={() => setScoringModalOpen(false)}>
+              继续标记死子
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {game.phase === "scoring" && !scoringModalOpen && (
+        <button className="scoring-fab" onClick={() => setScoringModalOpen(true)}>
+          <Icon name="target" size={17} /> 完成数子{liveScore ? `（黑 ${liveScore.b.toFixed(0)} : 白 ${liveScore.w.toFixed(0)}）` : ""}
+        </button>
+      )}
 
       <NewGameModal open={showNewGame} onClose={() => setShowNewGame(false)} canClose />
     </div>
