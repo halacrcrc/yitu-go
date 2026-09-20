@@ -110,11 +110,11 @@ class MainActivity : TauriActivity() {
 `;
 if (existsSync(mainActivityKt)) {
   const cur = readFileSync(mainActivityKt, "utf8");
-  if (!cur.includes("applyInsets")) {
+  if (cur.includes("enableEdgeToEdge") || !cur.includes("statusBarColor")) {
     writeFileSync(mainActivityKt, fixedMainActivity);
-    console.log("✓ MainActivity.kt: edge-to-edge + 原生 insets padding");
+    console.log("✓ MainActivity.kt: 非 edge-to-edge（状态栏着色墨绿，内容自动避让）");
   } else {
-    console.log("• MainActivity.kt: 已包含 insets 补丁");
+    console.log("• MainActivity.kt: 已为非 edge-to-edge 模式");
   }
 } else {
   console.error("✗ 未找到 MainActivity.kt");
@@ -178,9 +178,7 @@ const themesFiles = [
 ];
 const colorsXml = join(gen, "app", "src", "main", "res", "values", "colors.xml");
 const themeInject =
-  '<item name="android:windowBackground">@color/yitu_window_bg</item>' +
-  '<item name="android:statusBarColor">@android:color/transparent</item>' +
-  '<item name="android:navigationBarColor">@android:color/transparent</item>';
+  '<item name="android:windowBackground">@color/yitu_window_bg</item>';
 for (const f of themesFiles) {
   if (!existsSync(f)) continue;
   let x = readFileSync(f, "utf8");
