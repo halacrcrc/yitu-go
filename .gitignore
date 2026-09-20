@@ -25,3 +25,5 @@ Thumbs.db
 src-tauri/*.keystore
 src-tauri/android-signing-password.txt
 src-tauri/yitugo-aligned.apk
+
+kg*.json
