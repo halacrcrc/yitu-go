@@ -118,7 +118,7 @@ humanSLProfile = rank_1d
         Ok(())
     }
 
-    fn spawn(&mut self) -> Result<(), String> {
+    fn spawn(&self) -> Result<(), String> {
         let mut cmd = Command::new(&self.bin);
         cmd.arg("analysis")
             .arg("-model").arg(&self.model)
@@ -145,8 +145,7 @@ humanSLProfile = rank_1d
             }
         });
 
-        let dispatch: Dispatch = Arc::new(Mutex::new(HashMap::new()));
-        let d2 = Arc::clone(&dispatch);
+        let d2 = Arc::clone(&self.dispatch);
 
         // 后台分发线程：按 id 回投（协议异步，不能假设顺序）
         std::thread::spawn(move || {
@@ -184,7 +183,10 @@ humanSLProfile = rank_1d
         let stdin = child.stdin.take().expect("stdin");
         *self.child.lock().unwrap() = Some(child);
         *self.stdin.lock().unwrap() = Some(stdin);
-        self.dispatch = dispatch;
+        // 排空旧 dispatch 的悬挂等待者（文档 S-3：避免静默挂死）；新分发线程复用同一表
+        for (_, tx) in self.dispatch.lock().unwrap().drain() {
+            let _ = tx.send(serde_json::json!({"error": "engine_restart"}));
+        }
         Ok(())
     }
 
@@ -226,16 +228,8 @@ humanSLProfile = rank_1d
         }
     }
 
-    fn respawn(&mut self) -> Result<(), String> {
-        if let Some(c) = self.child.lock().unwrap().as_mut() {
-            let _ = c.kill();
-        }
-        {
-            let mut d = self.dispatch.lock().unwrap();
-            for (_, tx) in d.drain() {
-                let _ = tx.send(serde_json::json!({"error": "engine_restart"}));
-            }
-        }
+    pub(crate) fn respawn(&self) -> Result<(), String> {
+        // spawn() 内部会清理旧进程并排空 dispatch（文档清单 P1-1/P0-1）
         self.spawn()
     }
 }
@@ -482,4 +476,45 @@ fn sample_policy(policy: &[serde_json::Value], game: &Game) -> Option<usize> {
         }
     }
     entries.last().map(|e| e.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 需要本机部署 KataGo。设置环境变量 YITU_KATAGO_DIR 指向引擎目录后运行：
+    /// cargo test test_katago_e2e -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn test_katago_e2e() {
+        let dir = std::env::var("YITU_KATAGO_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| {
+                // 默认尝试 Windows app_data_dir
+                std::path::PathBuf::from(std::env::var("LOCALAPPDATA").unwrap_or_default())
+                    .join("com.yitugo.app")
+                    .join("katago")
+            });
+        let k = KataGoDesktop::from_dir(&dir).expect("KataGo 启动失败");
+        assert_eq!(k.capability().name, "katago");
+
+        let mut g = crate::engine::Game::new(9, 7.5, 0, ("b", false, ""), ("w", false, ""), false, None);
+        g.play(4 + 4 * 9).unwrap(); // 黑天元
+        g.play(2 + 2 * 9).unwrap(); // 白小目
+
+        // 各档位（humanSL profile 不同）都应返回合法点
+        for lv in [1u8, 5, 10] {
+            let mv = k
+                .best_move(&MoveRequest::from_game(&g, lv, MoveIntent::Play))
+                .unwrap_or_else(|e| panic!("lv{lv} 查询失败: {e}"));
+            println!("lv{lv} move: {:?}", mv.map(|p| (p % 9, p / 9)));
+            assert!(mv.is_none() || g.board[mv.unwrap()] == 0);
+        }
+
+        // 提示意图
+        let hint_mv = k
+            .best_move(&MoveRequest::from_game(&g, 0, MoveIntent::Hint))
+            .expect("hint 查询失败");
+        println!("hint move: {:?}", hint_mv.map(|p| (p % 9, p / 9)));
+    }
 }

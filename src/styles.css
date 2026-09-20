@@ -1013,7 +1013,7 @@ input[type="range"] { height: 4px; }
     transition: width 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.1);
   }
   .sidebar .collapse-btn { display: none !important; }
-  .sidebar .logo div { display: none !important; }
+  .sidebar .logo { display: none !important; }
   .rail-toggle {
     display: flex;
     align-items: center;
@@ -1083,6 +1083,10 @@ input[type="range"] { height: 4px; }
   z-index: 75;
   animation: fadeIn 0.2s;
 }
+
+/* 层级：rail(80) < drawer(90) < modal(100) < toast(200) */
+.modal-mask { z-index: 100; }
+.toast { z-index: 200; }
 
   .play, .task-step, .puzzle-body, .replay-body,
   .tutorial, .puzzle, .library { flex-direction: column !important; align-items: stretch !important; }
@@ -1241,4 +1245,30 @@ input[type="range"] { height: 4px; }
 .rail-toggle { display: none; }
 @media (max-width: 860px) {
   .rail-toggle { display: flex; }
+}
+
+/* ===== AI 引擎卡片 ===== */
+.ai-engine-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.ai-engine-row:last-of-type { border-bottom: none; }
+.ai-engine-row span { color: var(--muted); font-size: 13px; }
+.ai-engine-row b { color: var(--text-strong); font-size: 13.5px; display: flex; align-items: center; gap: 6px; }
+.ai-katago { color: var(--accent); }
+.badge-warn {
+  color: var(--danger);
+  background: rgba(224, 108, 108, 0.12);
+  border-color: rgba(224, 108, 108, 0.4);
+}
+code {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
+  word-break: break-all;
 }

@@ -61,7 +61,7 @@ npm run tauri build  # 打包 Windows NSIS 安装程序
 
 ### 构建 Android 版
 
-环境要求：JDK 17、Android SDK（platform-tools / platforms;android-34 / build-tools;34.0.0 / NDK r26c），Rust 目标 `aarch64-linux-android` 等：
+环境要求：JDK 17、Android SDK（platform-tools / platforms;android-36 / build-tools;36.0.0（模板 compileSdk=36） / NDK r26c），Rust 目标 `aarch64-linux-android` 等：
 
 ```bash
 rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
@@ -78,9 +78,13 @@ npx tauri android build --apk --target aarch64   # 生成 release APK
 
 | 文件 | 说明 |
 | --- | --- |
-| `katago.exe` | KataGo analysis 引擎（建议 v1.15.x Eigen/EigenAVX2 Windows 版） |
-| `model.bin.gz` | 网络权重。当前部署方案：humanSL 模型 `b18c384nbt-humanv0.bin.gz`（v1.15.0 release 提供，99MB），适配器会自动探测并按档位切换 rank profile |
+| `katago.exe` | KataGo analysis 引擎（v1.15.x Eigen/EigenAVX2 Windows 版，v1.18 仅发 CUDA 版） |
+| `model.bin.gz` | **正常模型**（推荐 `kata1-b18c384nbt`，约 94MB，来自 katagotraining.org） |
+| `human.bin.gz` | 可选：humanSL 模型 `b18c384nbt-humanv0.bin.gz`（99MB，v1.15.0 release 提供）——启用后 1~9 档按段位 profile 采样，忠实还原各段位真实下法 |
 | `katago.cfg` | 缺省时自动生成（Eigen 档：4 线程 + maxTime 3s 兜底） |
+
+- 双模型就绪时：1~9 档走 humanSL 段位采样（含 `humanSLChosenMoveProp` 混合），第 10 档为纯 KataGo 满配搜索；仅单模型时自动降级为全档位 profile 采样
+- humanSL 模型**只负责选点**；胜率/目差永远取自正常模型（避免 humanSL 胜率偏见，文档 5.1）
 
 - 探测过程全自动：humanSL 模型需要 `humanSLProfile` 声明，适配器通过探针查询自动适配并重启
 - 「提示」按钮固定使用正常搜索模式，不随对局档位变化（hint 语义）
