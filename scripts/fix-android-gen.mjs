@@ -51,24 +51,22 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : TauriActivity() {
-  // 安卓官方 edge-to-edge 范式：系统栏透明，WebView 通过原生 insets padding
-  // 避让状态栏/导航栏（Google "edge-to-edge" 指南的标准做法）。
-  // 相比注入 CSS 变量：不依赖 JS 注入时机，WebView 一创建即正确避让。
+  // 背景延伸、内容避让：enableEdgeToEdge 让窗口背景（墨绿）延伸到系统栏后面，
+  // 内容（WebView）用 safeDrawing insets 占位——含状态栏/手势条/刘海，比
+  // systemBars 更全面。关键：insets 值先落地保存，WebView 稍后创建时再应用。
   private var webView: WebView? = null
-  private var lastTop = -1
-  private var lastBottom = -1
+  private var lastTop = 0
+  private var lastBottom = 0
 
   @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
-
     val contentView = findViewById<View>(android.R.id.content)
     contentView.viewTreeObserver.addOnGlobalLayoutListener { applyInsets() }
-
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { _, insets ->
-      val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      applyInsets(bars.top, bars.bottom)
+      val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      applyInsets(safe.top, safe.bottom)
       insets
     }
   }
@@ -83,18 +81,17 @@ class MainActivity : TauriActivity() {
     if (hasFocus) applyInsets()
   }
 
-  private fun applyInsets(top: Int = lastTop, bottom: Int = lastBottom) {
-    if (top <= 0 && bottom <= 0) return
-    if (top == lastTop && bottom == lastBottom && webView != null) return
+  private fun applyInsets(top: Int = -1, bottom: Int = -1) {
+    if (top >= 0) lastTop = top
+    if (bottom >= 0) lastBottom = bottom
+    if (lastTop <= 0 && lastBottom <= 0) return
     if (webView == null) {
       val root = findViewById<View>(android.R.id.content) ?: return
-      webView = findWebView(root) ?: return
-      // WebView 背景透明：避让区域显示 Activity 主题背景，与界面浑然一体
-      webView?.setBackgroundColor(Color.TRANSPARENT)
+      val w = findWebView(root) ?: return
+      w.setBackgroundColor(Color.TRANSPARENT)
+      webView = w
     }
-    lastTop = top
-    lastBottom = bottom
-    webView?.setPadding(0, top, 0, bottom)
+    webView?.setPadding(0, lastTop, 0, lastBottom)
   }
 
   private fun findWebView(root: View): WebView? {
@@ -110,11 +107,11 @@ class MainActivity : TauriActivity() {
 `;
 if (existsSync(mainActivityKt)) {
   const cur = readFileSync(mainActivityKt, "utf8");
-  if (cur.includes("enableEdgeToEdge") || !cur.includes("statusBarColor")) {
+  if (!cur.includes("safeDrawing")) {
     writeFileSync(mainActivityKt, fixedMainActivity);
-    console.log("✓ MainActivity.kt: 非 edge-to-edge（状态栏着色墨绿，内容自动避让）");
+    console.log("✓ MainActivity.kt: 背景延伸 + safeDrawing 内容避让");
   } else {
-    console.log("• MainActivity.kt: 已为非 edge-to-edge 模式");
+    console.log("• MainActivity.kt: 已包含 safeDrawing 补丁");
   }
 } else {
   console.error("✗ 未找到 MainActivity.kt");
@@ -178,7 +175,9 @@ const themesFiles = [
 ];
 const colorsXml = join(gen, "app", "src", "main", "res", "values", "colors.xml");
 const themeInject =
-  '<item name="android:windowBackground">@color/yitu_window_bg</item>';
+  '<item name="android:windowBackground">@color/yitu_window_bg</item>' +
+  '<item name="android:statusBarColor">@android:color/transparent</item>' +
+  '<item name="android:navigationBarColor">@android:color/transparent</item>';
 for (const f of themesFiles) {
   if (!existsSync(f)) continue;
   let x = readFileSync(f, "utf8");

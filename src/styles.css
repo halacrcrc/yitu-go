@@ -26,8 +26,9 @@
 
 :root {
   --radius: 18px;
-  --safe-top: 0px;
-  --safe-bottom: 0px;
+  /* Chromium 128+ WebView 在 edge-to-edge 下提供 env()；原生 padding 生效时 env=0 不叠加 */
+  --safe-top: max(env(safe-area-inset-top, 0px), 0px);
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
 }
 
 :root[data-theme="light"] {
