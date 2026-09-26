@@ -1,8 +1,8 @@
 // Android gen 工程补丁：tauri android init 后运行一次
 // 修复 Windows 构建问题与安卓 UI 适配，共 5 项：
 //   1) 中文路径检查覆盖（android.overridePathCheck=true）
-//   2) MainActivity：edge-to-edge 一体化（透明系统栏 + WebView 原生 insets padding，
-//      系统栏高度不再注入 CSS——原生避让 100% 可靠，不依赖 JS 时机）
+//   2) MainActivity：edge-to-edge 一体化（透明系统栏 + WebView margin 避让，
+//      WebView 不支持 padding（内容会顶进 padding 区），margin 由父布局强制尊重）
 //   3) BuildTask 改经 cmd /c 启动 npm（JDK 17.0.5+ 限制）
 //   4) minSdk 29
 //   5) 主题：窗口背景墨绿色 + 透明系统栏（避让区域与界面浑然一体）
@@ -46,14 +46,15 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
+import android.widget.FrameLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : TauriActivity() {
-  // 背景延伸、内容避让：enableEdgeToEdge 让窗口背景（墨绿）延伸到系统栏后面，
-  // 内容（WebView）用 safeDrawing insets 占位——含状态栏/手势条/刘海，比
-  // systemBars 更全面。关键：insets 值先落地保存，WebView 稍后创建时再应用。
+  // 背景延伸、内容避让：enableEdgeToEdge 让窗口背景（墨绿）延伸到系统栏后面。
+  // 避让用 WebView 的 margin（Android WebView 不支持 padding，内容会顶进
+  // padding 区域——这是 WebView 的已知行为），margin 由父布局强制尊重。
   private var webView: WebView? = null
   private var lastTop = 0
   private var lastBottom = 0
@@ -65,7 +66,7 @@ class MainActivity : TauriActivity() {
     val contentView = findViewById<View>(android.R.id.content)
     contentView.viewTreeObserver.addOnGlobalLayoutListener { applyInsets() }
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { _, insets ->
-      val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+      val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
       applyInsets(safe.top, safe.bottom)
       insets
     }
@@ -91,7 +92,19 @@ class MainActivity : TauriActivity() {
       w.setBackgroundColor(Color.TRANSPARENT)
       webView = w
     }
-    webView?.setPadding(0, lastTop, 0, lastBottom)
+    val w = webView ?: return
+    val lp = w.layoutParams
+    if (lp is ViewGroup.MarginLayoutParams) {
+      if (lp.topMargin != lastTop || lp.bottomMargin != lastBottom) {
+        lp.topMargin = lastTop
+        lp.bottomMargin = lastBottom
+        w.layoutParams = lp
+      }
+    } else if (lp is FrameLayout.LayoutParams) {
+      lp.topMargin = lastTop
+      lp.bottomMargin = lastBottom
+      w.layoutParams = lp
+    }
   }
 
   private fun findWebView(root: View): WebView? {
