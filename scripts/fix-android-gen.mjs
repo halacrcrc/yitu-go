@@ -42,27 +42,34 @@ const fixedMainActivity = `package com.yitugo.app
 
 import android.annotation.SuppressLint
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
-import android.widget.FrameLayout
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import java.io.File
 
 class MainActivity : TauriActivity() {
-  // 背景延伸、内容避让：enableEdgeToEdge 让窗口背景（墨绿）延伸到系统栏后面。
-  // 避让用 WebView 的 margin（Android WebView 不支持 padding，内容会顶进
-  // padding 区域——这是 WebView 的已知行为），margin 由父布局强制尊重。
+  // 背景延伸、内容避让：系统栏透明，窗口背景（跟随应用主题的底色）延伸到
+  // 系统栏后面；WebView 用 margin 避让（Android WebView 不支持 padding）。
+  // 主题从 profile.json 读取（onResume 时刷新，应用内切换主题后回到前台生效）。
   private var webView: WebView? = null
   private var lastTop = 0
   private var lastBottom = 0
+  private var lastTheme = ""
 
   @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
-    enableEdgeToEdge()
+    enableEdgeToEdge(
+      statusBarStyle = readSystemBarStyle(),
+      navigationBarStyle = readSystemBarStyle(),
+    )
     super.onCreate(savedInstanceState)
+    applyWindowBackground()
     val contentView = findViewById<View>(android.R.id.content)
     contentView.viewTreeObserver.addOnGlobalLayoutListener { applyInsets() }
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { _, insets ->
@@ -74,12 +81,35 @@ class MainActivity : TauriActivity() {
 
   override fun onResume() {
     super.onResume()
+    applyWindowBackground()
     applyInsets()
   }
 
   override fun onWindowFocusChanged(hasFocus: Boolean) {
     super.onWindowFocusChanged(hasFocus)
     if (hasFocus) applyInsets()
+  }
+
+  private fun readTheme(): String {
+    return try {
+      val text = File(applicationInfo.dataDir, "profile.json").readText()
+      if (text.contains("\"theme\": \"light\"") || text.contains("\"theme\":\"light\"")) "light" else "dark"
+    } catch (e: Exception) {
+      "dark"
+    }
+  }
+
+  private fun readSystemBarStyle(): SystemBarStyle {
+    return if (readTheme() == "light") {
+      SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+    } else {
+      SystemBarStyle.dark(Color.TRANSPARENT)
+    }
+  }
+
+  private fun applyWindowBackground() {
+    val bg = if (readTheme() == "light") Color.parseColor("#F2EDE2") else Color.parseColor("#0B100E")
+    window.setBackgroundDrawable(ColorDrawable(bg))
   }
 
   private fun applyInsets(top: Int = -1, bottom: Int = -1) {
@@ -100,10 +130,6 @@ class MainActivity : TauriActivity() {
         lp.bottomMargin = lastBottom
         w.layoutParams = lp
       }
-    } else if (lp is FrameLayout.LayoutParams) {
-      lp.topMargin = lastTop
-      lp.bottomMargin = lastBottom
-      w.layoutParams = lp
     }
   }
 
@@ -120,9 +146,9 @@ class MainActivity : TauriActivity() {
 `;
 if (existsSync(mainActivityKt)) {
   const cur = readFileSync(mainActivityKt, "utf8");
-  if (!cur.includes("safeDrawing")) {
+  if (!cur.includes("readTheme")) {
     writeFileSync(mainActivityKt, fixedMainActivity);
-    console.log("✓ MainActivity.kt: 背景延伸 + safeDrawing 内容避让");
+    console.log("✓ MainActivity.kt: 背景延伸 + margin 避让 + 主题感知系统栏");
   } else {
     console.log("• MainActivity.kt: 已包含 safeDrawing 补丁");
   }
