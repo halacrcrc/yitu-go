@@ -734,3 +734,16 @@ mod tests {
         );
     }
 }
+
+// 内部统一接口适配（供 EngineManager 持有）
+impl crate::ai::KatagoEngineImpl for KataGoDesktop {
+    fn best_move_impl(&self, req: &MoveRequest) -> Result<Option<usize>, String> {
+        GoEngine::best_move(self, req)
+    }
+    fn capability_impl(&self) -> Capability {
+        GoEngine::capability(self)
+    }
+    fn respawn_impl(&self) -> Result<(), String> {
+        self.respawn()
+    }
+}

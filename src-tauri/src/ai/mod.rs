@@ -2,6 +2,8 @@
 // 规则层不动：棋盘权威状态仍在 Game（Rust 端），引擎只负责选点。
 
 pub mod katago;
+#[cfg(target_os = "android")]
+pub mod katago_android;
 
 pub use katago::KataGoDesktop;
 
@@ -53,6 +55,13 @@ pub struct Capability {
     pub backend: String,
     /// 是否加载了 humanSL 模型
     pub human_sl: bool,
+}
+
+/// KataGo 后端内部统一接口（桌面子进程 / 安卓进程内，各自实现）
+pub trait KatagoEngineImpl: Send {
+    fn best_move_impl(&self, req: &MoveRequest) -> Result<Option<usize>, String>;
+    fn capability_impl(&self) -> Capability;
+    fn respawn_impl(&self) -> Result<(), String>;
 }
 
 pub trait GoEngine: Send + Sync {
@@ -155,7 +164,7 @@ impl GoEngine for FallbackEngine {
 /// 失败/超时/缺失时自动降级到 FallbackEngine（文档 5.3）；
 /// KataGo 查询失败时自动重启重试一次（respawn 接线），并暴露降级状态。
 pub struct EngineManager {
-    katago: Option<std::sync::Arc<Mutex<katago::KataGoDesktop>>>,
+    katago: Option<std::sync::Arc<Mutex<Box<dyn KatagoEngineImpl>>>>,
     dir: std::path::PathBuf,
     degraded: std::sync::atomic::AtomicBool,
 }
@@ -173,10 +182,28 @@ impl EngineManager {
             .map(std::path::PathBuf::from)
             .filter(|p| p.is_dir());
         let dir = custom.unwrap_or_else(|| data_dir.join("katago"));
+
+        // 安卓：优先探测随包 libkatago.so（P3-3 进程内引擎）
+        #[cfg(target_os = "android")]
+        {
+            match katago_android::KataGoAndroid::detect(&dir) {
+                Ok(k) => {
+                    eprintln!("[ai] KataGo Android 进程内引擎已启用");
+                    return EngineManager {
+                        katago: Some(std::sync::Arc::new(Mutex::new(Box::new(k) as Box<dyn KatagoEngineImpl>))),
+                        dir,
+                        degraded: std::sync::atomic::AtomicBool::new(false),
+                    };
+                }
+                Err(e) => {
+                    eprintln!("[ai] KataGo Android 不可用（{e}），使用内置引擎");
+                }
+            }
+        }
         let katago = match katago::KataGoDesktop::from_dir(&dir) {
             Ok(k) => {
                 eprintln!("[ai] KataGo 引擎已启用: {}", k.capability().backend);
-                Some(Arc::new(Mutex::new(k)))
+                Some(Arc::new(Mutex::new(Box::new(k) as Box<dyn KatagoEngineImpl>)))
             }
             Err(e) => {
                 eprintln!("[ai] KataGo 不可用（{}），使用内置引擎", e);
@@ -196,7 +223,7 @@ impl EngineManager {
 
     pub fn capability(&self) -> Capability {
         if let Some(k) = &self.katago {
-            return GoEngine::capability(&*k.lock().unwrap());
+            return k.lock().unwrap().capability_impl();
         }
         FallbackEngine.capability()
     }
@@ -225,7 +252,7 @@ impl EngineManager {
 impl GoEngine for EngineManager {
     fn capability(&self) -> Capability {
         if let Some(k) = &self.katago {
-            return GoEngine::capability(&*k.lock().unwrap());
+            return k.lock().unwrap().capability_impl();
         }
         FallbackEngine.capability()
     }
@@ -234,7 +261,7 @@ impl GoEngine for EngineManager {
         use std::sync::atomic::Ordering;
         if let Some(k) = &self.katago {
             let k = k.lock().unwrap();
-            match GoEngine::best_move(&*k, req) {
+            match k.best_move_impl(req) {
                 Ok(m) => {
                     self.degraded.store(false, Ordering::Relaxed);
                     return Ok(m);
@@ -242,8 +269,8 @@ impl GoEngine for EngineManager {
                 Err(e) => {
                     // 文档清单 P1-1：崩溃/超时后重启重试一次，再失败才降级内置引擎
                     eprintln!("[ai] KataGo 查询失败（{}），尝试重启重试", e);
-                    if k.respawn().is_ok() {
-                        match GoEngine::best_move(&*k, req) {
+                    if k.respawn_impl().is_ok() {
+                        match k.best_move_impl(req) {
                             Ok(m) => {
                                 self.degraded.store(false, Ordering::Relaxed);
                                 return Ok(m);
