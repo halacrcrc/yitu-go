@@ -88,6 +88,17 @@ npx tauri android build --apk --target aarch64   # 生成 release APK
 
 - 双模型就绪时：1~9 档走 humanSL 段位采样（含 `humanSLChosenMoveProp` 混合），第 10 档为纯 KataGo 满配搜索；仅单模型时自动降级为全档位 profile 采样
 - **引擎目录可自定义**：设置页「AI 引擎」卡片 → 「选择引擎目录…」（Windows 系统目录选择器）；安卓版将在 NDK 集成后支持引擎文件选择（当前使用内置引擎）
+
+### 启用 KataGo 安卓版（进阶）
+
+v1.7.0 起 APK 已内置 `libkatago.so`（arm64，Eigen 后端，v1.15.0 交叉编译，16KB 对齐）。引擎会在启动时探测以下两个文件（位于 APK 的 nativeLibraryDir，随应用安装自动就位）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `libkatago.so` | 已内置 ✓ |
+| `libmodel.so` | 神经网络模型（`kata1-b18c384nbt` 或 humanSL）——**需用 adb 推送**：`adb push model.bin.gz /data/app/*/lib/arm64/libmodel.so`（具体路径以 `pm path` 输出为准） |
+
+模型就位后重启应用，AI 卡片与对弈页徽标显示 `KataGo·eigen-android`；未部署时自动使用内置引擎。安卓端每手 1 visit humanSL 采样（约 2~5 秒），配置已按手机降档（线程 2、cache 2^18、maxTime 3s）。
 - humanSL 模型**只负责选点**；胜率/目差永远取自正常模型（避免 humanSL 胜率偏见，文档 5.1）
 - **AI 复盘**：复盘页「开始 AI 分析」逐手评估整局（默认每手 24 visits，逐批进行带进度显示）
 
