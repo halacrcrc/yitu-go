@@ -1,0 +1,1 @@
+{"tag_name":"v1.7.1","name":"弈途围棋 v1.7.1","body":"安卓状态栏黑边修复。\n\n- 🐛 **根因**：enableEdgeToEdge 默认 auto 模式会给状态栏加黑色 scrim（跟随系统深色模式，与应用内浅色主题错位）——这就是上下黑边\n- ✅ 修复：按应用内主题（profile.json）显式指定系统栏样式（透明 scrim）——浅色主题下深色图标 / 深色主题下浅色图标；窗口背景色动态跟随应用主题（浅米 / 墨绿），状态栏区域与界面浑然一体\n- ✅ margin 避让保留（WebView 不支持 padding）\n\nWindows 包同步版本号（代码无变化）。Android 签名一致可覆盖安装。","draft":false,"prerelease":false}

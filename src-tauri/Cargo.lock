@@ -4617,7 +4617,7 @@ dependencies = [
 
 [[package]]
 name = "yitu-go"
-version = "1.7.0"
+version = "1.7.1"
 dependencies = [
  "libloading 0.8.9",
  "rand",

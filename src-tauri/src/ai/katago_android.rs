@@ -36,9 +36,9 @@ impl KataGoAndroid {
         let cfg_dir = data_dir.join("katago");
         std::fs::create_dir_all(&cfg_dir).ok();
         let cfg_path = cfg_dir.join("katago.cfg");
-        let human_sl_profile_line = human_path.is_some()
-            .then(|| "humanSLProfile = rank_1d".to_string())
-            .unwrap_or_default();
+        // 内置模型为 humanSL 网络：单模型模式下必须在 cfg 声明 humanSLProfile，
+        // 否则引擎报 SGFMetadata 缺失（文档 5.1 单模型部署）
+        let human_sl_profile_line = "humanSLProfile = rank_1d".to_string();
         std::fs::write(
             &cfg_path,
             format!(
@@ -126,6 +126,20 @@ impl crate::ai::KatagoEngineImpl for KataGoAndroid {
             "moves": moves,
             "maxVisits": 1,
             "includePolicy": true,
+            "overrideSettings": {
+                "humanSLProfile": match req.level.clamp(1, 10) {
+                    1 => "rank_20k",
+                    2 => "rank_15k",
+                    3 => "rank_10k",
+                    4 => "rank_5k",
+                    5 => "rank_2k",
+                    6 => "rank_1k",
+                    7 => "rank_1d",
+                    8 => "rank_3d",
+                    9 => "rank_5d",
+                    _ => "rank_9d",
+                }
+            }
         });
         if !initial.is_empty() {
             q["initialStones"] = serde_json::json!(initial);
